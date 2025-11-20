@@ -1,0 +1,160 @@
+package com.reminder.app.utils
+
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.core.content.FileProvider
+import com.reminder.app.R
+import com.reminder.app.data.Reminder
+import java.io.File
+
+/**
+ * Utility class for sending emails with reminders
+ */
+class EmailService {
+    
+    companion object {
+        private val EMAIL_SUBJECT = "Reminder: %s"
+        private val EMAIL_BODY = """
+            Hello,
+            
+            This is your reminder:
+            
+            %s
+            
+            Time: %s
+            Date: %s
+            
+            Best regards,
+            Reminder App
+        """.trimIndent()
+    }
+    
+    /**
+     * Send email with reminder details
+     */
+    fun sendReminderEmail(context: Context, reminder: Reminder) {
+        try {
+            // Create email intent without attachment first (more compatible)
+            val emailIntent = Intent(Intent.ACTION_SEND).apply {
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("")) // User can add recipient
+                putExtra(Intent.EXTRA_SUBJECT, String.format(EMAIL_SUBJECT, reminder.content.take(50)))
+                putExtra(Intent.EXTRA_TEXT, String.format(
+                    EMAIL_BODY,
+                    reminder.content,
+                    formatReminderTime(reminder.reminderTime),
+                    formatReminderDate(reminder.whenDay)
+                ))
+                type = "message/rfc822"
+            }
+            
+            // Try Gmail first
+            val gmailIntent = Intent(Intent.ACTION_SEND).apply {
+                setPackage("com.google.android.gm")
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(""))
+                putExtra(Intent.EXTRA_SUBJECT, String.format(EMAIL_SUBJECT, reminder.content.take(50)))
+                putExtra(Intent.EXTRA_TEXT, String.format(
+                    EMAIL_BODY,
+                    reminder.content,
+                    formatReminderTime(reminder.reminderTime),
+                    formatReminderDate(reminder.whenDay)
+                ))
+                putExtra(Intent.EXTRA_STREAM, fileUri)
+                type = "message/rfc822"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            // Try Yahoo Mail second
+            val yahooIntent = Intent(Intent.ACTION_SEND).apply {
+                setPackage("com.yahoo.mobile.client.android.mail")
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(""))
+                putExtra(Intent.EXTRA_SUBJECT, String.format(EMAIL_SUBJECT, reminder.content.take(50)))
+                putExtra(Intent.EXTRA_TEXT, String.format(
+                    EMAIL_BODY,
+                    reminder.content,
+                    formatReminderTime(reminder.reminderTime),
+                    formatReminderDate(reminder.whenDay)
+                ))
+                putExtra(Intent.EXTRA_STREAM, fileUri)
+                type = "message/rfc822"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            
+            // Try Gmail first, then Yahoo, fallback to general email chooser
+            when {
+                gmailIntent.resolveActivity(context.packageManager) != null -> {
+                    context.startActivity(gmailIntent)
+                }
+                yahooIntent.resolveActivity(context.packageManager) != null -> {
+                    context.startActivity(yahooIntent)
+                }
+                else -> {
+                    context.startActivity(Intent.createChooser(emailIntent, "Send reminder via email"))
+                }
+            }
+            
+        } catch (e: Exception) {
+            // Fallback to basic sharing if email fails
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "${reminder.content}\n\nTime: ${formatReminderTime(reminder.reminderTime)}\nDate: ${formatReminderDate(reminder.whenDay)}")
+            }
+            
+            context.startActivity(Intent.createChooser(shareIntent, "Share reminder"))
+        }
+    }
+    
+    /**
+     * Create a file with reminder details for email attachment
+     */
+    private fun createReminderFile(context: Context, reminder: Reminder): File {
+        val fileName = "reminder_${reminder.id}.txt"
+        val content = """
+            REMINDER DETAILS
+            ================
+            
+            Content: ${reminder.content}
+            Category: ${reminder.category}
+            Importance: ${reminder.importance}
+            Time: ${formatReminderTime(reminder.reminderTime)}
+            Date: ${reminder.whenDay ?: "No date set"}
+            Repeat: ${reminder.repeatType}
+            Interval: ${reminder.repeatInterval}
+            Created: ${java.util.Date(reminder.createdAt)}
+            
+            ---
+            Generated by Reminder App
+        """.trimIndent()
+        
+        // Create file in app's internal storage
+        val file = File(context.filesDir, fileName)
+        file.writeText(content)
+        return file
+    }
+    
+    /**
+     * Format reminder time for display
+     */
+    private fun formatReminderTime(timestamp: Long): String {
+        return java.text.SimpleDateFormat("h:mm a, MMM d, yyyy", java.util.Locale.getDefault())
+            .format(java.util.Date(timestamp))
+    }
+    
+    /**
+     * Format reminder date for display
+     */
+    private fun formatReminderDate(dateString: String?): String {
+        return dateString ?: "No date"
+    }
+    
+    /**
+     * Check if email apps are available
+     */
+    fun isEmailAvailable(context: Context): Boolean {
+        val packageManager = context.packageManager
+        val emailIntent = Intent(Intent.ACTION_SENDTO)
+        val activities = packageManager.queryIntentActivities(emailIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        return activities.isNotEmpty()
+    }
+}

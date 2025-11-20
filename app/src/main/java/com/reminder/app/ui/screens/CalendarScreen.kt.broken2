@@ -1,0 +1,655 @@
+package com.reminder.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ViewWeek
+import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.max
+import com.reminder.app.data.Reminder
+import com.reminder.app.ui.calendar.CalendarUtils
+import com.reminder.app.ui.calendar.CalendarDay
+import com.reminder.app.ui.calendar.CalendarWeek
+import com.reminder.app.ui.calendar.CalendarMonth
+import com.reminder.app.ui.calendar.CalendarYear
+import com.reminder.app.ui.calendar.CalendarViewType
+import com.reminder.app.viewmodel.ReminderViewModel
+import java.time.LocalDate
+import java.time.YearMonth
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CalendarScreen(
+    viewModel: ReminderViewModel,
+    onBack: () -> Unit,
+    onAddReminder: () -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    val reminders by viewModel.reminders.collectAsState()
+    var currentViewType by remember { mutableStateOf(CalendarViewType.WEEKLY) }
+    var currentDate by remember { mutableStateOf(LocalDate.now()) }
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // Navigation arrows
+                    IconButton(onClick = { 
+                        when (currentViewType) {
+                            CalendarViewType.DAILY -> currentDate = currentDate.minusDays(1)
+                            CalendarViewType.WEEKLY -> currentDate = currentDate.minusWeeks(1)
+                            CalendarViewType.MONTHLY -> currentDate = currentDate.minusMonths(1)
+                            CalendarViewType.YEARLY -> currentDate = currentDate.minusYears(1)
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Previous")
+                    }
+                    
+                    // View switcher
+                    IconButton(onClick = { currentViewType = CalendarViewType.DAILY }) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Day View")
+                    }
+                    IconButton(onClick = { currentViewType = CalendarViewType.WEEKLY }) {
+                        Icon(Icons.Default.ViewWeek, contentDescription = "Week View")
+                    }
+                    IconButton(onClick = { currentViewType = CalendarViewType.MONTHLY }) {
+                        Icon(Icons.Default.ViewModule, contentDescription = "Month View")
+                    }
+                    IconButton(onClick = { currentViewType = CalendarViewType.YEARLY }) {
+                        Icon(Icons.Default.ViewModule, contentDescription = "Year View")
+                    }
+                    
+                    IconButton(onClick = { 
+                        when (currentViewType) {
+                            CalendarViewType.DAILY -> currentDate = currentDate.plusDays(1)
+                            CalendarViewType.WEEKLY -> currentDate = currentDate.plusWeeks(1)
+                            CalendarViewType.MONTHLY -> currentDate = currentDate.plusMonths(1)
+                            CalendarViewType.YEARLY -> currentDate = currentDate.plusYears(1)
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Next")
+                    }
+                }
+            )
+        },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddReminder
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Reminder")
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            // Contextual title (second line)
+            when (currentViewType) {
+                CalendarViewType.DAILY -> Text(
+                    text = "${currentDate.dayOfMonth} ${CalendarUtils.getMonthText(currentDate)} ${currentDate.year}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                CalendarViewType.WEEKLY -> {
+                    val week = CalendarUtils.generateCalendarWeek(currentDate, reminders)
+                    Text(
+                        text = "Week of ${CalendarUtils.getMonthText(week.startDate)} ${week.startDate.dayOfMonth}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+                CalendarViewType.MONTHLY -> Text(
+                    text = CalendarUtils.getMonthTitle(YearMonth.from(currentDate)),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                CalendarViewType.YEARLY -> Text(
+                    text = "${currentDate.year}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+            
+            when (currentViewType) {
+                CalendarViewType.DAILY -> DailyView(
+                    date = currentDate,
+                    reminders = reminders,
+                    onDateClick = { selectedDate = it },
+                    onReminderClick = onReminderClick
+                )
+                CalendarViewType.WEEKLY -> WeeklyView(
+                    week = CalendarUtils.generateCalendarWeek(currentDate, reminders),
+                    onDateClick = { selectedDate = it },
+                    onReminderClick = onReminderClick
+                )
+                CalendarViewType.MONTHLY -> MonthlyView(
+                    month = CalendarUtils.generateCalendarMonth(YearMonth.from(currentDate), reminders),
+                    onDateClick = { selectedDate = it },
+                    onReminderClick = onReminderClick
+                )
+                CalendarViewType.YEARLY -> YearlyView(
+                    year = CalendarUtils.generateCalendarYear(currentDate.year, reminders),
+                    onMonthClick = { selectedDate = it.atDay(1) },
+                    onDateClick = { selectedDate = it },
+                    onReminderClick = onReminderClick
+                )
+            }
+        }
+            
+            // Selected date details
+            selectedDate?.let { date ->
+                Spacer(modifier = Modifier.height(16.dp))
+                SelectedDateReminders(
+                    date = date,
+                    reminders = CalendarUtils.getDayReminders(date, reminders),
+                    onReminderClick = onReminderClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyView(
+    date: LocalDate,
+    reminders: List<Reminder>,
+    onDateClick: (LocalDate) -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    val dayReminders = CalendarUtils.getDayReminders(date, reminders)
+    
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            if (dayReminders.isEmpty()) {
+                Text(
+                    text = "No reminders for this day",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(dayReminders.sortedBy { it.reminderTime }) { reminder ->
+                        ReminderCalendarItem(
+                            reminder = reminder,
+                            onClick = { onReminderClick(reminder) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyView(
+    week: CalendarWeek,
+    onDateClick: (LocalDate) -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Week day headers
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { day ->
+                    Text(
+                        text = day,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Week days
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                week.days.forEach { calendarDay ->
+                    WeeklyDayItem(
+                        calendarDay = calendarDay,
+                        onClick = { onDateClick(calendarDay.date) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthlyView(
+    month: CalendarMonth,
+    onDateClick: (LocalDate) -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column {
+        // Week day headers
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Calendar grid
+        Column {
+            month.days.chunked(7).forEach { week ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    week.forEach { calendarDay ->
+                        CalendarDayItem(
+                            calendarDay = calendarDay,
+                            isSelected = false,
+                            onClick = { onDateClick(calendarDay.date) }
+                        )
+                    }
+                }
+            }
+        }
+        }
+    }
+}
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Calendar grid
+        Column {
+            month.days.chunked(7).forEach { week ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    week.forEach { calendarDay ->
+                        CalendarDayItem(
+                            calendarDay = calendarDay,
+                            isSelected = false,
+                            onClick = { onDateClick(calendarDay.date) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun YearlyView(
+    year: CalendarYear,
+    onMonthClick: (YearMonth) -> Unit,
+    onDateClick: (LocalDate) -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = CalendarUtils.getMonthTitle(month.yearMonth),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold
+            )
+            
+            // Show mini calendar grid for reminders - only 2 weeks to save space
+            Column(
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                // Show first 2 weeks as mini calendar
+                month.days.take(14).chunked(7).forEach { week ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        week.forEach { day ->
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(
+                                        if (day.isCurrentPeriod) {
+                                            CalendarUtils.getPriorityColor(
+                                                day.reminders.maxByOrNull { it.importance }?.importance ?: 5
+                                            )
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        },
+                                        CircleShape
+                                    )
+                            ) {
+                                if (day.reminders.isNotEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(2.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.onPrimary,
+                                                CircleShape
+                                            )
+                                    )
+                }
+            }
+        }
+        }
+    }
+}
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyDayItem(
+    calendarDay: CalendarDay,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .height(80.dp)
+            .clickable { onClick() }
+            .padding(2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = when (calendarDay.date.dayOfWeek.value) {
+                    7 -> "Sat"
+                    1 -> "Sun"
+                    2 -> "Mon"
+                    3 -> "Tue"
+                    4 -> "Wed"
+                    5 -> "Thu"
+                    6 -> "Fri"
+                    else -> "Err"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1
+            )
+            
+            Text(
+                text = CalendarUtils.getDayText(calendarDay.date),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (calendarDay.isCurrentPeriod) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1
+            )
+            
+            // Reminder dots
+            if (calendarDay.reminders.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    calendarDay.reminders.take(3).forEach { reminder ->
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .background(
+                                    CalendarUtils.getPriorityColor(reminder.importance),
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectedDateReminders(
+    date: LocalDate,
+    reminders: List<Reminder>,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Reminders for ${CalendarUtils.getMonthText(date)} ${date.dayOfMonth}, ${date.year}",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            if (reminders.isEmpty()) {
+                Text(
+                    text = "No reminders for this day",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(reminders.sortedBy { it.reminderTime }) { reminder ->
+                        ReminderCalendarItem(
+                            reminder = reminder,
+                            onClick = { onReminderClick(reminder) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Reuse CalendarDayItem and ReminderCalendarItem from previous implementation
+@Composable
+fun CalendarDayItem(
+    calendarDay: CalendarDay,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .padding(2.dp)
+            .clip(CircleShape)
+            .clickable { onClick() }
+            .then(
+                if (isSelected) {
+                    Modifier.clip(CircleShape)
+                } else {
+                    Modifier
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = CalendarUtils.getDayText(calendarDay.date),
+                fontSize = 14.sp,
+                color = if (!calendarDay.isCurrentPeriod) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+            
+            // Reminder dots
+            if (calendarDay.reminders.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    calendarDay.reminders.take(3).forEach { reminder ->
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .background(
+                                    CalendarUtils.getPriorityColor(reminder.importance),
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Selection background
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        CircleShape
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+fun ReminderCalendarItem(
+    reminder: Reminder,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Priority indicator
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(
+                        CalendarUtils.getPriorityColor(reminder.importance),
+                        CircleShape
+                    )
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = reminder.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    reminder.whenDay?.let { day ->
+                        Text(
+                            text = "📅 $day",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    
+                    reminder.whenTime?.let { time ->
+                        if (reminder.whenDay != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = "⏰ $time",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

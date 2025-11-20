@@ -1,0 +1,386 @@
+package com.reminder.app.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ViewWeek
+import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.max
+import com.reminder.app.data.Reminder
+import com.reminder.app.ui.calendar.CalendarUtils
+import com.reminder.app.ui.calendar.CalendarDay
+import com.reminder.app.ui.calendar.CalendarWeek
+import com.reminder.app.ui.calendar.CalendarMonth
+import com.reminder.app.ui.calendar.CalendarYear
+import com.reminder.app.ui.calendar.CalendarViewType
+import com.reminder.app.viewmodel.ReminderViewModel
+import java.time.LocalDate
+import java.time.YearMonth
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CalendarScreen(
+    viewModel: ReminderViewModel,
+    onBack: () -> Unit,
+    onAddReminder: () -> Unit,
+    onReminderClick: (Reminder) -> Unit
+) {
+    val reminders by viewModel.reminders.collectAsState()
+    val currentDate by remember { mutableStateOf(LocalDate.now()) }
+    val currentViewType by remember { mutableStateOf(CalendarViewType.MONTHLY) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Calendar") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddReminder
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Reminder")
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            // View type selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Navigation arrows
+                IconButton(
+                    onClick = { 
+                        // Navigate to previous period
+                        when (currentViewType) {
+                            CalendarViewType.DAILY -> currentDate.minusDays(1)
+                            CalendarViewType.WEEKLY -> currentDate.minusWeeks(1)
+                            CalendarViewType.MONTHLY -> currentDate.minusMonths(1)
+                            CalendarViewType.YEARLY -> currentDate.minusYears(1)
+                        }.let { newDate -> 
+                            // Update current date (would need state management)
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Previous")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // View type chips
+                CalendarViewType.values().forEach { viewType ->
+                    FilterChip(
+                        onClick = { /* TODO: Change view type */ },
+                        label = { Text(viewType.name) },
+                        selected = currentViewType == viewType,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                IconButton(
+                    onClick = { 
+                        // Navigate to next period
+                        when (currentViewType) {
+                            CalendarViewType.DAILY -> currentDate.plusDays(1)
+                            CalendarViewType.WEEKLY -> currentDate.plusWeeks(1)
+                            CalendarViewType.MONTHLY -> currentDate.plusMonths(1)
+                            CalendarViewType.YEARLY -> currentDate.plusYears(1)
+                        }.let { newDate -> 
+                            // Update current date (would need state management)
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.ArrowForward, contentDescription = "Next")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Contextual title
+            Text(
+                text = when (currentViewType) {
+                    CalendarViewType.DAILY -> "${currentDate.dayOfMonth} ${CalendarUtils.getMonthText(currentDate)} ${currentDate.year}"
+                    CalendarViewType.WEEKLY -> "Week of ${CalendarUtils.getWeekStart(currentDate).dayOfMonth} ${CalendarUtils.getMonthText(currentDate)}"
+                    CalendarViewType.MONTHLY -> "${CalendarUtils.getMonthText(currentDate)} ${currentDate.year}"
+                    CalendarViewType.YEARLY -> "${currentDate.year}"
+                },
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Calendar content based on view type
+            when (currentViewType) {
+                CalendarViewType.DAILY -> {
+                    DailyView(
+                        currentDate = currentDate,
+                        reminders = reminders,
+                        onReminderClick = onReminderClick
+                    )
+                }
+                CalendarViewType.WEEKLY -> {
+                    WeeklyView(
+                        currentDate = currentDate,
+                        reminders = reminders,
+                        onReminderClick = onReminderClick
+                    )
+                }
+                CalendarViewType.MONTHLY -> {
+                    MonthlyView(
+                        currentDate = currentDate,
+                        reminders = reminders,
+                        onReminderClick = onReminderClick
+                    )
+                }
+                CalendarViewType.YEARLY -> {
+                    YearlyView(
+                        currentDate = currentDate,
+                        reminders = reminders,
+                        onReminderClick = onReminderClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyView(
+    currentDate: LocalDate,
+    reminders: List<Reminder>,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column {
+        Text(
+            text = "Daily view for ${CalendarUtils.getMonthText(currentDate)} ${currentDate.dayOfMonth}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Show reminders for this day
+        LazyColumn {
+            items(reminders.filter { 
+                // Filter reminders for current day (simplified)
+                it.whenDay?.contains("today", ignoreCase = true) == true
+            }) { reminder ->
+                ReminderCard(
+                    reminder = reminder,
+                    onClick = { onReminderClick(reminder) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyView(
+    currentDate: LocalDate,
+    reminders: List<Reminder>,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column {
+        Text(
+            text = "Week of ${CalendarUtils.getWeekStart(currentDate).dayOfMonth} ${CalendarUtils.getMonthText(currentDate)}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Week grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val weekDays = CalendarUtils.getWeekDays(currentDate)
+            items(weekDays) { day ->
+                DayCard(
+                    day = day,
+                    isCurrentMonth = true,
+                    onClick = { /* Handle day click */ }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyView(
+    currentDate: LocalDate,
+    reminders: List<Reminder>,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column {
+        Text(
+            text = "${CalendarUtils.getMonthText(currentDate)} ${currentDate.year}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Month grid
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val daysInMonth = CalendarUtils.getDaysInMonth(currentDate)
+            items(daysInMonth) { day ->
+                DayCard(
+                    day = day,
+                    isCurrentMonth = true,
+                    onClick = { /* Handle day click */ }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun YearlyView(
+    currentDate: LocalDate,
+    reminders: List<Reminder>,
+    onReminderClick: (Reminder) -> Unit
+) {
+    Column {
+        Text(
+            text = "${currentDate.year}",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Year grid (3x4 for months)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val months = CalendarUtils.getMonthsInYear()
+            items(months) { month ->
+                MonthCard(
+                    month = month,
+                    onClick = { /* Handle month click */ }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayCard(
+    day: Int,
+    isCurrentMonth: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .size(40.dp)
+            .clickable { onClick() },
+        ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = day.toString(),
+                fontSize = 12.sp,
+                color = if (isCurrentMonth) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MonthCard(
+    month: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1.5f)
+            .clickable { onClick() },
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = month,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReminderCard(
+    reminder: Reminder,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onClick() },
+        ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Text(
+                text = reminder.content,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${reminder.whenTime ?: "No time"} • ${reminder.category}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
