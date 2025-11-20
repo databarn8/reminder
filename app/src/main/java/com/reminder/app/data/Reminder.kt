@@ -99,17 +99,18 @@ data class Reminder(
                 "HIGH" -> AlertLevel.HIGH
                 "URGENT" -> AlertLevel.URGENT
                 "CUSTOM" -> AlertLevel.CUSTOM
-                else -> AlertLevel.LOW // Default to LOW
+                else -> AlertLevel.CUSTOM // Treat unrecognized values as custom profiles
             }
         } catch (e: Exception) {
-            AlertLevel.LOW // Fallback to LOW
+            AlertLevel.CUSTOM // Fallback to CUSTOM for unrecognized values
         }
     }
     
     fun getCustomProfileName(): String? {
-        return if (getAlertLevelEnum() == AlertLevel.CUSTOM) {
-            alertLevel.takeIf { it != "CUSTOM" }
-        } else null
+        return when (alertLevel.uppercase()) {
+            "LOW", "MEDIUM", "HIGH", "URGENT", "CUSTOM" -> null
+            else -> alertLevel // Return the actual custom profile name
+        }
     }
     
     fun getRepeatPatternData(): RepeatPattern {

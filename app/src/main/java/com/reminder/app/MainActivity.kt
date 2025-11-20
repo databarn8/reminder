@@ -24,7 +24,7 @@ import com.reminder.app.ui.screens.ConfirmationScreen
 import com.reminder.app.ui.screens.EmailSettingsScreen
 import com.reminder.app.ui.screens.InputScreen
 import com.reminder.app.ui.screens.ReminderListScreen
-import com.reminder.app.ui.screens.AlertSettingsScreen
+import com.reminder.app.ui.screens.AlertSettingsScreenFixed
 import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.utils.EnhancedEmailService
 import com.reminder.app.utils.NotificationScheduler
@@ -247,7 +247,7 @@ class MainActivity : ComponentActivity() {
                         
                         composable("alert_settings") {
                             android.util.Log.d("AlertTest", "Alert settings screen navigated!")
-                            AlertSettingsScreen(
+                            AlertSettingsScreenFixed(
                                 onBack = { navController.popBackStack() }
                             )
                         }
