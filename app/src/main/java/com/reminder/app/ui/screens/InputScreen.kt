@@ -1004,6 +1004,7 @@ fun InputScreen(
     var alertConfig by remember { mutableStateOf(AlertConfig()) }
     var repeatPattern by remember { mutableStateOf(RepeatPattern()) }
     var alertLevel by remember { mutableStateOf(com.reminder.app.data.AlertLevel.LOW) }
+    var selectedCustomProfileName by remember { mutableStateOf<String?>(null) }
     
     // Enhanced date/time state
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
@@ -1045,6 +1046,7 @@ fun InputScreen(
                         alertConfig = reminder.getAlertConfigData()
                         repeatPattern = reminder.getRepeatPatternData()
                         alertLevel = reminder.getAlertLevelEnum()
+                        selectedCustomProfileName = reminder.getCustomProfileNameFromField()
                         android.util.Log.d("InputScreen", "Loaded whenDay='$whenDay', whenTime='$whenTime' from database")
                         android.util.Log.d("InputScreen", "Loaded alertConfig=${alertConfig.alertType}, repeatPattern=${repeatPattern.type}")
                         
@@ -1316,7 +1318,12 @@ fun InputScreen(
                                     triggerPoints = null, // Deprecated, using alertConfig instead
                                     alertConfig = alertConfigJson,
                                     repeatPattern = repeatPatternJson,
-                                    alertLevel = alertLevel.name
+                                    alertLevel = if (alertLevel == com.reminder.app.data.AlertLevel.CUSTOM) {
+                                        selectedCustomProfileName ?: "CUSTOM"
+                                    } else {
+                                        alertLevel.name
+                                    },
+                                    customProfileName = selectedCustomProfileName
                                 )
                                 
                                 if (reminderId != null) {
@@ -1704,15 +1711,8 @@ fun InputScreen(
                                                 com.reminder.app.data.AlertLevel.HIGH -> "High"
                                                 com.reminder.app.data.AlertLevel.URGENT -> "Urgent"
                                                 com.reminder.app.data.AlertLevel.CUSTOM -> {
-                                                    // Try to get the custom profile name from the current alert level config
-                                                    val alertLevelConfig = loadInputScreenAlertLevelConfig(context)
-                                                    val customProfileName = loadedReminder?.getCustomProfileName()
-                                                    if (!customProfileName.isNullOrBlank()) {
-                                                        customProfileName
-                                                    } else {
-                                                        // For new reminders, show the first available custom profile or "Custom"
-                                                        alertLevelConfig.customProfiles.keys.firstOrNull() ?: "Custom"
-                                                    }
+                                                    // Use the selected custom profile name
+                                                    selectedCustomProfileName ?: loadedReminder?.getCustomProfileNameFromField() ?: "Custom"
                                                 }
                                             },
                                             color = when (alertLevel) {
@@ -1745,7 +1745,8 @@ fun InputScreen(
                                     val alertLevelConfig = loadInputScreenAlertLevelConfig(context)
                                     val alertOptions = AlertLevelOption.getAllOptions(alertLevelConfig.customProfiles)
                                     
-                                    alertOptions.forEach { option ->
+                                    // First add built-in options
+                                    AlertLevelOption.getBuiltInOptions().forEach { option ->
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
@@ -1760,14 +1761,28 @@ fun InputScreen(
                                                 )
                                             },
                                             onClick = {
-                                                if (option.level == com.reminder.app.data.AlertLevel.CUSTOM) {
-                                                    // For custom profiles, we need to store the actual profile name
-                                                    alertLevel = com.reminder.app.data.AlertLevel.CUSTOM
-                                                    // Store the custom profile name in a separate variable for later use
-                                                    // The actual profile name will be handled when saving the reminder
-                                                } else {
-                                                    alertLevel = option.level
-                                                }
+                                                alertLevel = option.level
+                                                selectedCustomProfileName = null
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                    
+                                    // Then add custom profile options
+                                    AlertLevelOption.getCustomOptions(alertLevelConfig.customProfiles).forEach { option ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = option.displayName,
+                                                    color = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            },
+                                            onClick = {
+                                                // For custom profiles, we need to store the actual profile name
+                                                alertLevel = com.reminder.app.data.AlertLevel.CUSTOM
+                                                // Store the custom profile name in a separate variable for later use
+                                                selectedCustomProfileName = option.customProfileName ?: option.displayName
+                                                android.util.Log.d("InputScreen", "Selected custom profile: ${selectedCustomProfileName}")
                                                 expanded = false
                                             }
                                         )
@@ -1978,7 +1993,7 @@ fun InputScreen(
     
     // Alert Settings Screen Navigation
     if (showAlertSettings) {
-        AlertSettingsScreen(
+        AlertSettingsScreenFixed(
             onBack = { showAlertSettings = false }
         )
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -35,14 +36,11 @@ fun AlertSettingsScreenFixed(
     val context = LocalContext.current
     var alertLevelConfig by remember { mutableStateOf(loadAlertLevelConfig(context)) }
     var selectedLevel by remember { mutableStateOf(AlertLevel.LOW) }
+    var selectedCustomProfile by remember { mutableStateOf<String?>(null) }
+    var showCustomProfileDialog by remember { mutableStateOf(false) }
+    var customProfileName by remember { mutableStateOf("") }
     var showSaveConfirmation by remember { mutableStateOf(false) }
-    var showTestDialog by remember { mutableStateOf(false) }
-    var testResult by remember { mutableStateOf<String?>(null) }
-    
-    // Simple alert level configuration that actually works
-    var vibrationEnabled by remember { mutableStateOf(true) }
-    var soundEnabled by remember { mutableStateOf(true) }
-    var flashEnabled by remember { mutableStateOf(false) }
+    var editingCustomProfileConfig by remember { mutableStateOf<AlertConfig?>(null) }
     
     Scaffold(
         topBar = {
@@ -122,7 +120,29 @@ fun AlertSettingsScreenFixed(
                 item {
                     AlertLevelSelector(
                         selectedLevel = selectedLevel,
-                        onLevelSelected = { level -> selectedLevel = level }
+                        selectedCustomProfile = selectedCustomProfile,
+                        alertLevelConfig = alertLevelConfig,
+                        onLevelSelected = { level ->
+                            selectedLevel = level
+                            selectedCustomProfile = null
+                        },
+                        onCustomProfileSelected = { profileName ->
+                            selectedLevel = AlertLevel.CUSTOM
+                            selectedCustomProfile = profileName
+                        }
+                    )
+                }
+                
+                item {
+                    AlertLevelConfiguration(
+                        alertLevel = selectedLevel,
+                        selectedCustomProfile = selectedCustomProfile,
+                        alertLevelConfig = alertLevelConfig,
+                        onConfigChanged = { newConfig ->
+                            alertLevelConfig = updateAlertLevelConfig(alertLevelConfig, selectedLevel, selectedCustomProfile, newConfig)
+                            saveAlertLevelConfig(context, alertLevelConfig)
+                            showSaveConfirmation = true
+                        }
                     )
                 }
                 
@@ -134,95 +154,146 @@ fun AlertSettingsScreenFixed(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = "Alert Configuration",
+                                text = "Custom Profiles",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             
-                            // Vibration Settings
+                            // Profile count display
+                            val profileCount = alertLevelConfig.customProfiles.size
                             Text(
-                                text = "Vibration",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                                text = "Custom Profiles ($profileCount/3)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Enabled")
-                                Switch(
-                                    checked = vibrationEnabled,
-                                    onCheckedChange = { 
-                                        vibrationEnabled = it
-                                        saveSimpleSettings(context, vibrationEnabled, soundEnabled, flashEnabled)
-                                        showSaveConfirmation = true
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            if (alertLevelConfig.customProfiles.isNotEmpty()) {
+                                alertLevelConfig.customProfiles.forEach { (name, config) ->
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Row {
+                                                    IconButton(onClick = {
+                                                        // Edit profile functionality - open dialog to edit
+                                                        customProfileName = name
+                                                        editingCustomProfileConfig = config
+                                                        showCustomProfileDialog = true
+                                                    }) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Settings,
+                                                            contentDescription = "Edit Profile"
+                                                        )
+                                                    }
+                                                    IconButton(onClick = {
+                                                        alertLevelConfig = alertLevelConfig.copy(
+                                                            customProfiles = alertLevelConfig.customProfiles - name
+                                                        )
+                                                        saveAlertLevelConfig(context, alertLevelConfig)
+                                                        showSaveConfirmation = true
+                                                    }) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Delete,
+                                                            contentDescription = "Delete Profile"
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            
+                                            // Show current settings for this custom profile
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = "Current Settings:",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        text = "Vibration: ${if (config.vibration.enabled) "On" else "Off"}",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                    Text(
+                                                        text = "Sound: ${if (config.sound.enabled) "On" else "Off"}",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                }
+                                                
+                                                if (config.vibration.enabled) {
+                                                    Text(
+                                                        text = "Pattern: ${config.vibration.pattern.name}, Intensity: ${config.vibration.intensity.name}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                
+                                                if (config.sound.enabled) {
+                                                    Text(
+                                                        text = "Type: ${config.sound.type.name}, Volume: ${(config.sound.volume * 100).toInt()}%",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                
+                                                if (config.series.enabled) {
+                                                    Text(
+                                                        text = "Repeat: ${config.series.maxAttempts} times, Escalation: ${if (config.series.escalationEnabled) "On" else "Off"}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
+                                }
+                            } else {
+                                Text(
+                                    text = "No custom profiles yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             
-                            // Sound Settings
-                            Text(
-                                text = "Sound",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Enabled")
-                                Switch(
-                                    checked = soundEnabled,
-                                    onCheckedChange = { 
-                                        soundEnabled = it
-                                        saveSimpleSettings(context, vibrationEnabled, soundEnabled, flashEnabled)
-                                        showSaveConfirmation = true
-                                    }
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            // Screen Flash Settings
-                            Text(
-                                text = "Screen Flash",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Enabled")
-                                Switch(
-                                    checked = flashEnabled,
-                                    onCheckedChange = { 
-                                        flashEnabled = it
-                                        saveSimpleSettings(context, vibrationEnabled, soundEnabled, flashEnabled)
-                                        showSaveConfirmation = true
-                                    }
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            // Test button
                             Button(
                                 onClick = {
-                                    testAlertSettings(context, vibrationEnabled, soundEnabled, flashEnabled) { result ->
-                                        testResult = result
-                                        showTestDialog = true
+                                    if (profileCount < 3) {
+                                        showCustomProfileDialog = true
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = profileCount < 3
                             ) {
-                                Text("Test Alert Settings")
+                                Text(if (profileCount < 3) "Create Custom Profile" else "Maximum 3 profiles reached")
                             }
                         }
                     }
@@ -231,32 +302,78 @@ fun AlertSettingsScreenFixed(
         }
     }
     
-    // Test dialog
-    if (showTestDialog) {
+    if (showCustomProfileDialog) {
         AlertDialog(
             onDismissRequest = { 
-                showTestDialog = false
-                testResult = null
+                showCustomProfileDialog = false
+                editingCustomProfileConfig = null
             },
-            title = { Text("Test Result") },
-            text = {
+            title = { 
                 Text(
-                    text = testResult ?: "Testing...",
-                    color = if (testResult?.contains("successful") == true) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.error
+                    if (editingCustomProfileConfig != null) "Edit Custom Profile: $customProfileName" 
+                    else "Create Custom Profile"
+                ) 
+            },
+            text = {
+                if (editingCustomProfileConfig != null) {
+                    // Show full configuration editor for existing profile
+                    editingCustomProfileConfig?.let { config ->
+                        CustomProfileConfigEditor(
+                            profileName = customProfileName,
+                            config = config,
+                            onConfigChanged = { newConfig ->
+                                editingCustomProfileConfig = newConfig
+                            }
+                        )
                     }
-                )
+                } else {
+                    // Simple name input for new profile
+                    OutlinedTextField(
+                        value = customProfileName,
+                        onValueChange = { customProfileName = it },
+                        label = { Text("Profile Name") },
+                        singleLine = true
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
-                    onClick = { 
-                        showTestDialog = false
-                        testResult = null
+                    onClick = {
+                        if (customProfileName.isNotBlank()) {
+                            val profileCount = alertLevelConfig.customProfiles.size
+                            
+                            if (editingCustomProfileConfig != null) {
+                                // Update existing profile with its configuration
+                                alertLevelConfig = alertLevelConfig.copy(
+                                    customProfiles = alertLevelConfig.customProfiles + Pair(customProfileName, editingCustomProfileConfig!!)
+                                )
+                                saveAlertLevelConfig(context, alertLevelConfig)
+                                showSaveConfirmation = true
+                            } else if (profileCount < 3) {
+                                // Create new profile with default settings
+                                val newConfig = AlertConfig.Companion.getMediumLevelDefaults()
+                                alertLevelConfig = alertLevelConfig.copy(
+                                    customProfiles = alertLevelConfig.customProfiles + Pair(customProfileName, newConfig)
+                                )
+                                saveAlertLevelConfig(context, alertLevelConfig)
+                                showSaveConfirmation = true
+                            }
+                            
+                            customProfileName = ""
+                            editingCustomProfileConfig = null
+                            showCustomProfileDialog = false
+                        }
                     }
                 ) {
-                    Text("OK")
+                    Text(if (editingCustomProfileConfig != null) "Update" else "Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showCustomProfileDialog = false
+                    editingCustomProfileConfig = null
+                }) {
+                    Text("Cancel")
                 }
             }
         )
@@ -266,7 +383,10 @@ fun AlertSettingsScreenFixed(
 @Composable
 fun AlertLevelSelector(
     selectedLevel: AlertLevel,
-    onLevelSelected: (AlertLevel) -> Unit
+    selectedCustomProfile: String?,
+    alertLevelConfig: AlertLevelConfig,
+    onLevelSelected: (AlertLevel) -> Unit,
+    onCustomProfileSelected: (String) -> Unit
 ) {
     Card {
         Column(
@@ -282,7 +402,8 @@ fun AlertLevelSelector(
             Spacer(modifier = Modifier.height(12.dp))
             
             Column(Modifier.selectableGroup()) {
-                AlertLevel.values().forEach { level ->
+                // Built-in alert levels
+                listOf(AlertLevel.LOW, AlertLevel.MEDIUM, AlertLevel.HIGH, AlertLevel.URGENT).forEach { level ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -306,7 +427,7 @@ fun AlertLevelSelector(
                                     AlertLevel.MEDIUM -> "Medium"
                                     AlertLevel.HIGH -> "High"
                                     AlertLevel.URGENT -> "Urgent"
-                                    AlertLevel.CUSTOM -> "Custom"
+                                    else -> level.name
                                 },
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Medium
@@ -317,10 +438,46 @@ fun AlertLevelSelector(
                                     AlertLevel.MEDIUM -> "Standard notifications"
                                     AlertLevel.HIGH -> "Important alerts"
                                     AlertLevel.URGENT -> "Critical notifications"
-                                    AlertLevel.CUSTOM -> "Custom profiles"
+                                    else -> ""
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                // Custom profiles section
+                if (alertLevelConfig.customProfiles.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Custom Profiles:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    
+                    alertLevelConfig.customProfiles.forEach { (profileName, _) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp, 4.dp, 16.dp, 4.dp)
+                                .selectable(
+                                    selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
+                                    onClick = { onCustomProfileSelected(profileName) },
+                                    role = Role.RadioButton
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = profileName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -330,40 +487,416 @@ fun AlertLevelSelector(
     }
 }
 
-// Simple persistence functions that actually work
-private fun loadSimpleSettings(context: android.content.Context): Triple<Boolean, Boolean, Boolean> {
-    return try {
-        val prefs = context.getSharedPreferences("simple_alert_settings", android.content.Context.MODE_PRIVATE)
-        val vibrationEnabled = prefs.getBoolean("vibration_enabled", true)
-        val soundEnabled = prefs.getBoolean("sound_enabled", true)
-        val flashEnabled = prefs.getBoolean("flash_enabled", false)
-        Triple(vibrationEnabled, soundEnabled, flashEnabled)
-    } catch (e: Exception) {
-        android.util.Log.e("AlertSettingsScreen", "Error loading simple settings: ${e.message}")
-        Triple(true, true, false) // Default values
-    }
-}
-
-private fun saveSimpleSettings(
-    context: android.content.Context, 
-    vibrationEnabled: Boolean, 
-    soundEnabled: Boolean, 
-    flashEnabled: Boolean
+@Composable
+fun AlertLevelConfiguration(
+    alertLevel: AlertLevel,
+    selectedCustomProfile: String?,
+    alertLevelConfig: AlertLevelConfig,
+    onConfigChanged: (AlertConfig) -> Unit
 ) {
-    try {
-        val prefs = context.getSharedPreferences("simple_alert_settings", android.content.Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("vibration_enabled", vibrationEnabled)
-            .putBoolean("sound_enabled", soundEnabled)
-            .putBoolean("flash_enabled", flashEnabled)
-            .apply()
-        
-        android.util.Log.d("AlertSettingsScreen", "Settings saved: vibration=$vibrationEnabled, sound=$soundEnabled, flash=$flashEnabled")
-    } catch (e: Exception) {
-        android.util.Log.e("AlertSettingsScreen", "Error saving simple settings: ${e.message}")
+    // Use a key to force recomposition when custom profile changes
+    val configKey = remember(alertLevel, selectedCustomProfile) {
+        "${alertLevel.name}_${selectedCustomProfile ?: ""}"
+    }
+    
+    val alertConfig = when {
+        alertLevel == AlertLevel.CUSTOM && selectedCustomProfile != null -> {
+            alertLevelConfig.customProfiles[selectedCustomProfile] ?: AlertConfig.getMediumLevelDefaults()
+        }
+        else -> {
+            getAlertConfigForLevel(alertLevelConfig, alertLevel, selectedCustomProfile)
+        }
+    }
+    
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = when {
+                    alertLevel == AlertLevel.CUSTOM && selectedCustomProfile != null -> {
+                        "Configuration for $selectedCustomProfile"
+                    }
+                    else -> {
+                        "Configuration for ${alertLevel.name} Level"
+                    }
+                },
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Vibration Settings
+            Text(
+                text = "Vibration",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Enabled")
+                Switch(
+                    checked = alertConfig.vibration.enabled,
+                    onCheckedChange = {
+                        val newConfig = alertConfig.copy(
+                            vibration = alertConfig.vibration.copy(enabled = it)
+                        )
+                        onConfigChanged(newConfig)
+                    }
+                )
+            }
+            
+            if (alertConfig.vibration.enabled) {
+                Text("Pattern: ${alertConfig.vibration.pattern.name}")
+                Text("Intensity: ${alertConfig.vibration.intensity.name}")
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Sound Settings
+            Text(
+                text = "Sound",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Enabled")
+                Switch(
+                    checked = alertConfig.sound.enabled,
+                    onCheckedChange = {
+                        val newConfig = alertConfig.copy(
+                            sound = alertConfig.sound.copy(enabled = it)
+                        )
+                        onConfigChanged(newConfig)
+                    }
+                )
+            }
+            
+            if (alertConfig.sound.enabled) {
+                Text("Type: ${alertConfig.sound.type.name}")
+                Text("Volume: ${(alertConfig.sound.volume * 100).toInt()}%")
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Series Settings
+            Text(
+                text = "Repeat & Escalation",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Enabled")
+                Switch(
+                    checked = alertConfig.series.enabled,
+                    onCheckedChange = {
+                        val newConfig = alertConfig.copy(
+                            series = alertConfig.series.copy(enabled = it)
+                        )
+                        onConfigChanged(newConfig)
+                    }
+                )
+            }
+            
+            if (alertConfig.series.enabled) {
+                Text("Max attempts: ${alertConfig.series.maxAttempts}")
+                Text("Interval: ${alertConfig.series.intervalMinutes} minutes")
+                Text("Escalation: ${if (alertConfig.series.escalationEnabled) "Enabled" else "Disabled"}")
+            }
+        }
     }
 }
 
+@Composable
+fun CustomProfileConfigEditor(
+    profileName: String,
+    config: AlertConfig,
+    onConfigChanged: (AlertConfig) -> Unit
+) {
+    var localConfig by remember { mutableStateOf(config) }
+    
+    LaunchedEffect(config) {
+        localConfig = config
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Vibration Settings
+        Text(
+            text = "Vibration Settings",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Enabled")
+            Switch(
+                checked = localConfig.vibration.enabled,
+                onCheckedChange = {
+                    val newConfig = localConfig.copy(
+                        vibration = localConfig.vibration.copy(enabled = it)
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                }
+            )
+        }
+        
+        if (localConfig.vibration.enabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Pattern:")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                VibrationPattern.values().forEach { pattern ->
+                    Row(
+                        modifier = Modifier
+                            .selectable(
+                                selected = localConfig.vibration.pattern == pattern,
+                                onClick = {
+                                    val newConfig = localConfig.copy(
+                                        vibration = localConfig.vibration.copy(pattern = pattern)
+                                    )
+                                    localConfig = newConfig
+                                    onConfigChanged(newConfig)
+                                }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = localConfig.vibration.pattern == pattern,
+                            onClick = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(pattern.name.replace("_", " "))
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Intensity:")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                VibrationIntensity.values().forEach { intensity ->
+                    Row(
+                        modifier = Modifier
+                            .selectable(
+                                selected = localConfig.vibration.intensity == intensity,
+                                onClick = {
+                                    val newConfig = localConfig.copy(
+                                        vibration = localConfig.vibration.copy(intensity = intensity)
+                                    )
+                                    localConfig = newConfig
+                                    onConfigChanged(newConfig)
+                                }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = localConfig.vibration.intensity == intensity,
+                            onClick = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(intensity.name.replace("_", " "))
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Sound Settings
+        Text(
+            text = "Sound Settings",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Enabled")
+            Switch(
+                checked = localConfig.sound.enabled,
+                onCheckedChange = {
+                    val newConfig = localConfig.copy(
+                        sound = localConfig.sound.copy(enabled = it)
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                }
+            )
+        }
+        
+        if (localConfig.sound.enabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Sound Type:")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SoundType.values().forEach { type ->
+                    Row(
+                        modifier = Modifier
+                            .selectable(
+                                selected = localConfig.sound.type == type,
+                                onClick = {
+                                    val newConfig = localConfig.copy(
+                                        sound = localConfig.sound.copy(type = type)
+                                    )
+                                    localConfig = newConfig
+                                    onConfigChanged(newConfig)
+                                }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = localConfig.sound.type == type,
+                            onClick = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(type.name.replace("_", " "))
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Volume: ${(localConfig.sound.volume * 100).toInt()}%")
+            Slider(
+                value = localConfig.sound.volume,
+                onValueChange = {
+                    val newConfig = localConfig.copy(
+                        sound = localConfig.sound.copy(volume = it)
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                },
+                valueRange = 0f..1f,
+                steps = 9
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Series Settings
+        Text(
+            text = "Repeat & Escalation Settings",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Enabled")
+            Switch(
+                checked = localConfig.series.enabled,
+                onCheckedChange = {
+                    val newConfig = localConfig.copy(
+                        series = localConfig.series.copy(enabled = it)
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                }
+            )
+        }
+        
+        if (localConfig.series.enabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Max Attempts:")
+            Slider(
+                value = localConfig.series.maxAttempts.toFloat(),
+                onValueChange = {
+                    val newConfig = localConfig.copy(
+                        series = localConfig.series.copy(maxAttempts = it.toInt())
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                },
+                valueRange = 1f..10f,
+                steps = 8
+            )
+            Text("${localConfig.series.maxAttempts}")
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text("Interval (minutes):")
+            Slider(
+                value = localConfig.series.intervalMinutes.toFloat(),
+                onValueChange = {
+                    val newConfig = localConfig.copy(
+                        series = localConfig.series.copy(intervalMinutes = it.toInt())
+                    )
+                    localConfig = newConfig
+                    onConfigChanged(newConfig)
+                },
+                valueRange = 1f..30f,
+                steps = 28
+            )
+            Text("${localConfig.series.intervalMinutes}")
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Escalation")
+                Switch(
+                    checked = localConfig.series.escalationEnabled,
+                    onCheckedChange = {
+                        val newConfig = localConfig.copy(
+                            series = localConfig.series.copy(escalationEnabled = it)
+                        )
+                        localConfig = newConfig
+                        onConfigChanged(newConfig)
+                    }
+                )
+            }
+        }
+    }
+}
+
+// Helper functions for persistence
 private fun loadAlertLevelConfig(context: android.content.Context): AlertLevelConfig {
     return try {
         val prefs = context.getSharedPreferences("alert_level_config", android.content.Context.MODE_PRIVATE)
@@ -390,89 +923,51 @@ private fun saveAlertLevelConfig(context: android.content.Context, config: Alert
     }
 }
 
-private fun testAlertSettings(
-    context: android.content.Context,
-    vibrationEnabled: Boolean,
-    soundEnabled: Boolean,
-    flashEnabled: Boolean,
-    onResult: (String) -> Unit
-) {
-    try {
-        val results = mutableListOf<String>()
-        
-        // Test vibration
-        if (vibrationEnabled) {
-            try {
-                val vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    val vibratorManager = context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as android.os.VibratorManager
-                    vibratorManager.defaultVibrator
+private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, selectedCustomProfile: String? = null): AlertConfig {
+    return try {
+        when (level) {
+            AlertLevel.LOW -> levelConfig.lowLevel
+            AlertLevel.MEDIUM -> levelConfig.mediumLevel
+            AlertLevel.HIGH -> levelConfig.highLevel
+            AlertLevel.URGENT -> levelConfig.urgentLevel
+            AlertLevel.CUSTOM -> {
+                if (selectedCustomProfile != null) {
+                    levelConfig.customProfiles[selectedCustomProfile] ?: AlertConfig.Companion.getMediumLevelDefaults()
                 } else {
-                    @Suppress("DEPRECATION")
-                    context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                    levelConfig.customProfiles.values.firstOrNull() ?: AlertConfig.Companion.getMediumLevelDefaults()
                 }
-                
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    vibrator.vibrate(
-                        android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+            }
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("AlertSettingsScreen", "Error getting alert config for level $level: ${e.message}")
+        AlertConfig.Companion.getMediumLevelDefaults() // Fallback to medium defaults
+    }
+}
+
+private fun updateAlertLevelConfig(
+    levelConfig: AlertLevelConfig,
+    level: AlertLevel,
+    selectedCustomProfile: String?,
+    newConfig: AlertConfig
+): AlertLevelConfig {
+    return try {
+        when (level) {
+            AlertLevel.LOW -> levelConfig.copy(lowLevel = newConfig)
+            AlertLevel.MEDIUM -> levelConfig.copy(mediumLevel = newConfig)
+            AlertLevel.HIGH -> levelConfig.copy(highLevel = newConfig)
+            AlertLevel.URGENT -> levelConfig.copy(urgentLevel = newConfig)
+            AlertLevel.CUSTOM -> {
+                if (selectedCustomProfile != null) {
+                    levelConfig.copy(
+                        customProfiles = levelConfig.customProfiles + (selectedCustomProfile to newConfig)
                     )
                 } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(500)
+                    levelConfig
                 }
-                
-                results.add("✓ Vibration test successful")
-                android.util.Log.d("AlertSettingsScreen", "Vibration test successful")
-            } catch (e: Exception) {
-                results.add("✗ Vibration test failed: ${e.message}")
-                android.util.Log.e("AlertSettingsScreen", "Vibration test failed: ${e.message}")
             }
-        } else {
-            results.add("⚠ Vibration disabled")
         }
-        
-        // Test sound
-        if (soundEnabled) {
-            try {
-                // Play a system sound for testing
-                val audioManager = context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
-                val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, currentVolume, 0)
-                
-                results.add("✓ Sound test successful")
-                android.util.Log.d("AlertSettingsScreen", "Sound test successful")
-            } catch (e: Exception) {
-                results.add("✗ Sound test failed: ${e.message}")
-                android.util.Log.e("AlertSettingsScreen", "Sound test failed: ${e.message}")
-            }
-        } else {
-            results.add("⚠ Sound disabled")
-        }
-        
-        // Test screen flash
-        if (flashEnabled) {
-            try {
-                // Simple screen flash test
-                results.add("✓ Screen flash test successful")
-                android.util.Log.d("AlertSettingsScreen", "Screen flash test successful")
-            } catch (e: Exception) {
-                results.add("✗ Screen flash test failed: ${e.message}")
-                android.util.Log.e("AlertSettingsScreen", "Screen flash test failed: ${e.message}")
-            }
-        } else {
-            results.add("⚠ Screen flash disabled")
-        }
-        
-        val overallResult = if (results.all { it.startsWith("✓") || it.startsWith("⚠") }.size == results.size) {
-            "All tests completed successfully!"
-        } else {
-            "Some tests failed. Check logs for details."
-        }
-        
-        onResult(overallResult)
-        
     } catch (e: Exception) {
-        val errorResult = "Test failed: ${e.message}"
-        android.util.Log.e("AlertSettingsScreen", "Test failed: ${e.message}")
-        onResult(errorResult)
+        android.util.Log.e("AlertSettingsScreen", "Error updating alert level config for $level: ${e.message}")
+        levelConfig // Return original config if update fails
     }
 }

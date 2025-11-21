@@ -249,7 +249,7 @@ fun ReminderListScreen(
                         )
                         if (searchQuery.isBlank()) {
                             Text(
-                                text = "Tap the + button to add your first reminder",
+                                text = "Tap + button to add your first reminder",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -268,11 +268,25 @@ fun ReminderListScreen(
                             onDeleteClick = { viewModel.deleteReminder(reminder) },
                             onEmailClick = { onEmailClick(reminder) },
                             onAlertLevelChange = { reminder, level ->
-                                val alertLevelName = when (level) {
-                                    AlertLevel.CUSTOM -> reminder.getCustomProfileName() ?: "Custom"
-                                    else -> level.name
+                                val (alertLevelName, customProfileName) = when (level) {
+                                    AlertLevel.CUSTOM -> {
+                                        // Get the selected custom profile name from the option
+                                        val alertLevelConfig = loadAlertLevelConfig(context)
+                                        val customProfiles = alertLevelConfig.customProfiles
+                                        if (customProfiles.isNotEmpty()) {
+                                            // For now, use the first custom profile or keep existing
+                                            val profileName = reminder.getCustomProfileNameFromField() ?: customProfiles.keys.first()
+                                            Pair(profileName, profileName)
+                                        } else {
+                                            Pair("Custom", null)
+                                        }
+                                    }
+                                    else -> Pair(level.name, null)
                                 }
-                                val updatedReminder = reminder.copy(alertLevel = alertLevelName)
+                                val updatedReminder = reminder.copy(
+                                    alertLevel = alertLevelName,
+                                    customProfileName = customProfileName
+                                )
                                 viewModel.updateReminder(updatedReminder)
                                 showGlobalSaveConfirmation = true
                             }
@@ -335,17 +349,33 @@ fun ReminderCard(
                     var expanded by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { expanded = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Alert Level",
-                                tint = when (reminder.getAlertLevelEnum()) {
-                                    AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                    AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                    AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                    AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Alert Level",
+                                    tint = when (reminder.getAlertLevelEnum()) {
+                                        AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                        AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                        AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                        AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                    }
+                                )
+                                // Show custom profile name if selected
+                                if (reminder.getAlertLevelEnum() == AlertLevel.CUSTOM) {
+                                    val customProfileName = reminder.getCustomProfileNameFromField()
+                                    if (!customProfileName.isNullOrBlank()) {
+                                        Text(
+                                            text = customProfileName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                    }
                                 }
-                            )
+                            }
                         }
                         DropdownMenu(
                             expanded = expanded,
@@ -354,9 +384,9 @@ fun ReminderCard(
                             // Get custom profiles from alert level config
                             val context = LocalContext.current
                             val alertLevelConfig = loadAlertLevelConfig(context)
-                            val alertOptions = AlertLevelOption.getAllOptions(alertLevelConfig.customProfiles)
                             
-                            alertOptions.forEach { option ->
+                            // First add built-in options
+                            AlertLevelOption.getBuiltInOptions().forEach { option ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(
@@ -371,19 +401,32 @@ fun ReminderCard(
                                         )
                                     },
                                     onClick = {
-                                        val actualLevel = if (option.level == AlertLevel.CUSTOM) {
-                                            // For custom profiles, we need to determine which custom profile this reminder uses
-                                            val currentCustomProfileName = reminder.getCustomProfileName()
-                                            if (currentCustomProfileName == option.customProfileName) {
-                                                AlertLevel.CUSTOM
-                                            } else {
-                                                // This is a different custom profile, we'll need to update the reminder
-                                                AlertLevel.CUSTOM // We'll handle the actual profile name in the onAlertLevelChange
-                                            }
-                                        } else {
-                                            option.level
-                                        }
-                                        onAlertLevelChange(reminder, actualLevel)
+                                        onAlertLevelChange(reminder, option.level)
+                                        expanded = false
+                                    }
+                                )
+                            }
+                            
+                            // Then add custom profile options
+                            AlertLevelOption.getCustomOptions(alertLevelConfig.customProfiles).forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option.displayName,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    },
+                                    onClick = {
+                                        // For custom profiles, we need to handle the profile name properly
+                                        // Update the reminder with the specific custom profile name
+                                        val (alertLevelName, customProfileName) = Pair(option.customProfileName ?: option.displayName, option.customProfileName ?: option.displayName)
+                                        val updatedReminder = reminder.copy(
+                                            alertLevel = alertLevelName,
+                                            customProfileName = customProfileName
+                                        )
+                                        // We need to access the viewModel from the parent component
+                                        // For now, just call the onAlertLevelChange callback with CUSTOM
+                                        onAlertLevelChange(reminder, AlertLevel.CUSTOM)
                                         expanded = false
                                     }
                                 )
@@ -430,7 +473,7 @@ fun ReminderCard(
                         AlertLevel.MEDIUM -> "Medium"
                         AlertLevel.HIGH -> "High"
                         AlertLevel.URGENT -> "Urgent"
-                        AlertLevel.CUSTOM -> reminder.getCustomProfileName() ?: "Custom"
+                        AlertLevel.CUSTOM -> reminder.getCustomProfileNameFromField() ?: "Custom"
                     }}",
                     style = MaterialTheme.typography.bodySmall,
                     color = when (reminder.getAlertLevelEnum()) {
