@@ -93,22 +93,22 @@ fun AlertSettingsScreenFixed(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
                     Card {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(12.dp)
                         ) {
                             Text(
                                 text = "Alert Levels",
-                                style = MaterialTheme.typography.headlineSmall,
+                                style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Configure how alerts behave for different importance levels",
                                 style = MaterialTheme.typography.bodySmall,
@@ -152,37 +152,41 @@ fun AlertSettingsScreenFixed(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(12.dp)
                         ) {
-                            Text(
-                                text = "Custom Profiles",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
                             // Profile count display
                             val profileCount = alertLevelConfig.customProfiles.size
-                            Text(
-                                text = "Custom Profiles ($profileCount/3)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                             
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Custom Profiles",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "($profileCount/3)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
                             
                             if (alertLevelConfig.customProfiles.isNotEmpty()) {
                                 alertLevelConfig.customProfiles.forEach { (name, config) ->
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
+                                            .padding(vertical = 2.dp),
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                                         )
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(12.dp)
+                                            modifier = Modifier.padding(8.dp)
                                         ) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
@@ -191,86 +195,64 @@ fun AlertSettingsScreenFixed(
                                             ) {
                                                 Text(
                                                     text = name,
-                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    style = MaterialTheme.typography.bodySmall,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                                 Row {
-                                                    IconButton(onClick = {
-                                                        // Edit profile functionality - open dialog to edit
-                                                        customProfileName = name
-                                                        editingCustomProfileConfig = config
-                                                        showCustomProfileDialog = true
-                                                    }) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            // Edit profile functionality - open dialog to edit
+                                                            customProfileName = name
+                                                            editingCustomProfileConfig = config
+                                                            showCustomProfileDialog = true
+                                                        },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Settings,
-                                                            contentDescription = "Edit Profile"
+                                                            contentDescription = "Edit Profile",
+                                                            modifier = Modifier.size(16.dp)
                                                         )
                                                     }
-                                                    IconButton(onClick = {
-                                                        alertLevelConfig = alertLevelConfig.copy(
-                                                            customProfiles = alertLevelConfig.customProfiles - name
-                                                        )
-                                                        saveAlertLevelConfig(context, alertLevelConfig)
-                                                        showSaveConfirmation = true
-                                                    }) {
+                                                    IconButton(
+                                                        onClick = {
+                                                            alertLevelConfig = alertLevelConfig.copy(
+                                                                customProfiles = alertLevelConfig.customProfiles - name
+                                                            )
+                                                            saveAlertLevelConfig(context, alertLevelConfig)
+                                                            showSaveConfirmation = true
+                                                        },
+                                                        modifier = Modifier.size(24.dp)
+                                                    ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Delete,
-                                                            contentDescription = "Delete Profile"
+                                                            contentDescription = "Delete Profile",
+                                                            modifier = Modifier.size(16.dp)
                                                         )
                                                     }
                                                 }
                                             }
                                             
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            
-                                            // Show current settings for this custom profile
-                                            Column(
-                                                modifier = Modifier.fillMaxWidth()
+                                            // Show current settings for this custom profile in compact format
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
                                                 Text(
-                                                    text = "Current Settings:",
+                                                    text = "V: ${if (config.vibration.enabled) "On" else "Off"}",
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    fontSize = 10.sp
                                                 )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Text(
-                                                        text = "Vibration: ${if (config.vibration.enabled) "On" else "Off"}",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                    Text(
-                                                        text = "Sound: ${if (config.sound.enabled) "On" else "Off"}",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                }
-                                                
-                                                if (config.vibration.enabled) {
-                                                    Text(
-                                                        text = "Pattern: ${config.vibration.pattern.name}, Intensity: ${config.vibration.intensity.name}",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                                
-                                                if (config.sound.enabled) {
-                                                    Text(
-                                                        text = "Type: ${config.sound.type.name}, Volume: ${(config.sound.volume * 100).toInt()}%",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                                
-                                                if (config.series.enabled) {
-                                                    Text(
-                                                        text = "Repeat: ${config.series.maxAttempts} times, Escalation: ${if (config.series.escalationEnabled) "On" else "Off"}",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
+                                                Text(
+                                                    text = "S: ${if (config.sound.enabled) "On" else "Off"}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontSize = 10.sp
+                                                )
+                                                Text(
+                                                    text = "R: ${if (config.series.enabled) config.series.maxAttempts else "0"}",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontSize = 10.sp
+                                                )
                                             }
                                         }
                                     }
@@ -278,12 +260,12 @@ fun AlertSettingsScreenFixed(
                             } else {
                                 Text(
                                     text = "No custom profiles yet",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             
                             Button(
                                 onClick = {
@@ -393,14 +375,14 @@ fun AlertLevelSelector(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
             Text(
                 text = "Select Alert Level",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             Column(Modifier.selectableGroup()) {
                 // Built-in alert levels
@@ -413,7 +395,7 @@ fun AlertLevelSelector(
                                 onClick = { onLevelSelected(level) },
                                 role = Role.RadioButton
                             )
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
@@ -450,19 +432,19 @@ fun AlertLevelSelector(
                 
                 // Custom profiles section
                 if (alertLevelConfig.customProfiles.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Custom Profiles:",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.padding(vertical = 2.dp)
                     )
                     
                     alertLevelConfig.customProfiles.forEach { (profileName, _) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp, 4.dp, 16.dp, 4.dp)
+                                .padding(horizontal = 16.dp, vertical = 2.dp)
                                 .selectable(
                                     selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
                                     onClick = { onCustomProfileSelected(profileName) },
@@ -509,7 +491,7 @@ fun AlertLevelConfiguration(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
             Text(
                 text = when {
@@ -523,7 +505,7 @@ fun AlertLevelConfiguration(
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             
             // Vibration Settings Card
             Card(
@@ -534,7 +516,7 @@ fun AlertLevelConfiguration(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -559,7 +541,7 @@ fun AlertLevelConfiguration(
                     }
                     
                     if (alertConfig.vibration.enabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Pattern Selection
                         Text(
@@ -569,7 +551,7 @@ fun AlertLevelConfiguration(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             VibrationPattern.values().forEach { pattern ->
@@ -590,16 +572,17 @@ fun AlertLevelConfiguration(
                                         selected = alertConfig.vibration.pattern == pattern,
                                         onClick = null
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = pattern.name.replace("_", " "),
-                                        style = MaterialTheme.typography.bodySmall
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Intensity Selection
                         Text(
@@ -609,7 +592,7 @@ fun AlertLevelConfiguration(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             VibrationIntensity.values().forEach { intensity ->
@@ -630,10 +613,11 @@ fun AlertLevelConfiguration(
                                         selected = alertConfig.vibration.intensity == intensity,
                                         onClick = null
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = intensity.name.replace("_", " "),
-                                        style = MaterialTheme.typography.bodySmall
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
@@ -642,7 +626,7 @@ fun AlertLevelConfiguration(
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Sound Settings Card
             Card(
@@ -653,7 +637,7 @@ fun AlertLevelConfiguration(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -678,7 +662,7 @@ fun AlertLevelConfiguration(
                     }
                     
                     if (alertConfig.sound.enabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Sound Type Selection
                         Text(
@@ -686,14 +670,14 @@ fun AlertLevelConfiguration(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Column(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             SoundType.values().forEach { type ->
                                 Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
                                         .selectable(
                                             selected = alertConfig.sound.type == type,
                                             onClick = {
@@ -709,16 +693,17 @@ fun AlertLevelConfiguration(
                                         selected = alertConfig.sound.type == type,
                                         onClick = null
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = type.name.replace("_", " "),
-                                        style = MaterialTheme.typography.bodySmall
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Volume Slider
                         Text(
@@ -741,7 +726,7 @@ fun AlertLevelConfiguration(
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             // Series Settings Card
             Card(
@@ -752,7 +737,7 @@ fun AlertLevelConfiguration(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -777,7 +762,7 @@ fun AlertLevelConfiguration(
                     }
                     
                     if (alertConfig.series.enabled) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Max Attempts Slider
                         Text(
@@ -797,7 +782,7 @@ fun AlertLevelConfiguration(
                             steps = 8
                         )
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Interval Slider
                         Text(
@@ -817,7 +802,7 @@ fun AlertLevelConfiguration(
                             steps = 28
                         )
                         
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         
                         // Escalation Switch
                         Text(
