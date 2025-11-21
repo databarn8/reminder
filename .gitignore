@@ -1,3 +1,5 @@
+*.kt.bak
+rem.zip
 # Built application files
 *.apk
 *.ap_
@@ -96,4 +98,4 @@ ehthumbs.db
 Thumbs.db
 
 # Kotlin
-*.kt.bakrem.zip
+keys
