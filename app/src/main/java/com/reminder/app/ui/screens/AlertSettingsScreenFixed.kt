@@ -6,6 +6,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -94,25 +95,19 @@ fun AlertSettingsScreenFixed(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 item {
                     Card {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp)
+                                .padding(8.dp)
                         ) {
                             Text(
                                 text = "Alert Levels",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Configure how alerts behave for different importance levels",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -152,7 +147,7 @@ fun AlertSettingsScreenFixed(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp)
+                                .padding(8.dp)
                         ) {
                             // Profile count display
                             val profileCount = alertLevelConfig.customProfiles.size
@@ -163,55 +158,89 @@ fun AlertSettingsScreenFixed(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Custom Profiles",
+                                    text = "Custom Profiles ($profileCount/3)",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Text(
-                                    text = "($profileCount/3)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Button(
+                                    onClick = {
+                                        if (profileCount < 3) {
+                                            showCustomProfileDialog = true
+                                        }
+                                    },
+                                    enabled = profileCount < 3,
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text("Create", style = MaterialTheme.typography.bodySmall)
+                                }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
                             
                             if (alertLevelConfig.customProfiles.isNotEmpty()) {
-                                alertLevelConfig.customProfiles.forEach { (name, config) ->
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 2.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                        )
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(8.dp)
+                                // Display profiles in a horizontal scrollable row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    alertLevelConfig.customProfiles.forEach { (name, config) ->
+                                        Card(
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable {
+                                                    customProfileName = name
+                                                    editingCustomProfileConfig = config
+                                                    showCustomProfileDialog = true
+                                                }
                                         ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                            Column(
+                                                modifier = Modifier.padding(4.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
                                             ) {
                                                 Text(
                                                     text = name,
                                                     style = MaterialTheme.typography.bodySmall,
                                                     fontWeight = FontWeight.Bold
                                                 )
-                                                Row {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                // Compact status indicators
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "V:${if (config.vibration.enabled) "✓" else "✗"}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = if (config.vibration.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Text(
+                                                        text = "S:${if (config.sound.enabled) "✓" else "✗"}",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = if (config.sound.enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Text(
+                                                        text = "R:${if (config.series.enabled) config.series.maxAttempts else "0"}",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
                                                     IconButton(
                                                         onClick = {
-                                                            // Edit profile functionality - open dialog to edit
                                                             customProfileName = name
                                                             editingCustomProfileConfig = config
                                                             showCustomProfileDialog = true
                                                         },
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(20.dp)
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Settings,
                                                             contentDescription = "Edit Profile",
-                                                            modifier = Modifier.size(16.dp)
+                                                            modifier = Modifier.size(14.dp)
                                                         )
                                                     }
                                                     IconButton(
@@ -222,37 +251,15 @@ fun AlertSettingsScreenFixed(
                                                             saveAlertLevelConfig(context, alertLevelConfig)
                                                             showSaveConfirmation = true
                                                         },
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(20.dp)
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Delete,
                                                             contentDescription = "Delete Profile",
-                                                            modifier = Modifier.size(16.dp)
+                                                            modifier = Modifier.size(14.dp)
                                                         )
                                                     }
                                                 }
-                                            }
-                                            
-                                            // Show current settings for this custom profile in compact format
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(
-                                                    text = "V: ${if (config.vibration.enabled) "On" else "Off"}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontSize = 10.sp
-                                                )
-                                                Text(
-                                                    text = "S: ${if (config.sound.enabled) "On" else "Off"}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontSize = 10.sp
-                                                )
-                                                Text(
-                                                    text = "R: ${if (config.series.enabled) config.series.maxAttempts else "0"}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontSize = 10.sp
-                                                )
                                             }
                                         }
                                     }
@@ -261,22 +268,9 @@ fun AlertSettingsScreenFixed(
                                 Text(
                                     text = "No custom profiles yet",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 4.dp)
                                 )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(6.dp))
-                            
-                            Button(
-                                onClick = {
-                                    if (profileCount < 3) {
-                                        showCustomProfileDialog = true
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = profileCount < 3
-                            ) {
-                                Text(if (profileCount < 3) "Create Custom Profile" else "Maximum 3 profiles reached")
                             }
                         }
                     }
@@ -375,93 +369,124 @@ fun AlertLevelSelector(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(8.dp)
         ) {
             Text(
                 text = "Select Alert Level",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             
             Column(Modifier.selectableGroup()) {
-                // Built-in alert levels
-                listOf(AlertLevel.LOW, AlertLevel.MEDIUM, AlertLevel.HIGH, AlertLevel.URGENT).forEach { level ->
+                // Built-in alert levels - use horizontal layout for better space
+                Column {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selectedLevel == level,
-                                onClick = { onLevelSelected(level) },
-                                role = Role.RadioButton
-                            )
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        RadioButton(
-                            selected = selectedLevel == level,
-                            onClick = null
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = when (level) {
-                                    AlertLevel.LOW -> "Low"
-                                    AlertLevel.MEDIUM -> "Medium"
-                                    AlertLevel.HIGH -> "High"
-                                    AlertLevel.URGENT -> "Urgent"
-                                    else -> level.name
-                                },
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = when (level) {
-                                    AlertLevel.LOW -> "Gentle reminders"
-                                    AlertLevel.MEDIUM -> "Standard notifications"
-                                    AlertLevel.HIGH -> "Important alerts"
-                                    AlertLevel.URGENT -> "Critical notifications"
-                                    else -> ""
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        listOf(AlertLevel.LOW, AlertLevel.MEDIUM).forEach { level ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .selectable(
+                                        selected = selectedLevel == level,
+                                        onClick = { onLevelSelected(level) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                RadioButton(
+                                    selected = selectedLevel == level,
+                                    onClick = null,
+                                    modifier = Modifier.scale(0.8f)
+                                )
+                                Text(
+                                    text = when (level) {
+                                        AlertLevel.LOW -> "Low"
+                                        AlertLevel.MEDIUM -> "Medium"
+                                        else -> level.name
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        listOf(AlertLevel.HIGH, AlertLevel.URGENT).forEach { level ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .selectable(
+                                        selected = selectedLevel == level,
+                                        onClick = { onLevelSelected(level) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                RadioButton(
+                                    selected = selectedLevel == level,
+                                    onClick = null,
+                                    modifier = Modifier.scale(0.8f)
+                                )
+                                Text(
+                                    text = when (level) {
+                                        AlertLevel.HIGH -> "High"
+                                        AlertLevel.URGENT -> "Urgent"
+                                        else -> level.name
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
                 
-                // Custom profiles section
+                // Custom profiles section - use horizontal layout
                 if (alertLevelConfig.customProfiles.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Custom Profiles:",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(vertical = 2.dp)
                     )
                     
-                    alertLevelConfig.customProfiles.forEach { (profileName, _) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 2.dp)
-                                .selectable(
+                    // Display custom profiles in a horizontal row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        alertLevelConfig.customProfiles.forEach { (profileName, _) ->
+                            Row(
+                                modifier = Modifier
+                                    .selectable(
+                                        selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
+                                        onClick = { onCustomProfileSelected(profileName) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
                                     selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
-                                    onClick = { onCustomProfileSelected(profileName) },
-                                    role = Role.RadioButton
-                                ),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedLevel == AlertLevel.CUSTOM && selectedCustomProfile == profileName,
-                                onClick = null
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = profileName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium
-                            )
+                                    onClick = null,
+                                    modifier = Modifier.scale(0.7f)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = profileName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
