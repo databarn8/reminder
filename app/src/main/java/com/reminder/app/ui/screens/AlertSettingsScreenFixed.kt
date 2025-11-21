@@ -576,10 +576,10 @@ fun AlertLevelConfiguration(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            VibrationPattern.values().forEach { pattern ->
+                            VibrationPattern.values().filter { it != VibrationPattern.CUSTOM && it != VibrationPattern.PULSE }.forEach { pattern ->
                                 Row(
                                     modifier = Modifier
                                         .selectable(
@@ -617,7 +617,7 @@ fun AlertLevelConfiguration(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             VibrationIntensity.values().forEach { intensity ->
@@ -697,10 +697,10 @@ fun AlertLevelConfiguration(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SoundType.values().forEach { type ->
+                            SoundType.values().filter { it != SoundType.CUSTOM }.forEach { type ->
                                 Row(
                                     modifier = Modifier
                                         .selectable(
@@ -720,7 +720,14 @@ fun AlertLevelConfiguration(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = type.name.replace("_", " "),
+                                        text = when (type.name) {
+                                            "CHIME" -> "Chime"
+                                            "GENTLE" -> "Gentle"
+                                            "CUSTOM" -> "Custom"
+                                            "ALARM" -> "Alarm"
+                                            "URGENT" -> "Urgent"
+                                            else -> type.name.replace("_", " ")
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         fontSize = 11.sp
                                     )
@@ -829,22 +836,28 @@ fun AlertLevelConfiguration(
                         
                         Spacer(modifier = Modifier.height(6.dp))
                         
-                        // Escalation Switch
-                        Text(
-                            text = "Escalation: ${if (alertConfig.series.escalationEnabled) "On" else "Off"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Switch(
-                            checked = alertConfig.series.escalationEnabled,
-                            onCheckedChange = {
-                                val newConfig = alertConfig.copy(
-                                    series = alertConfig.series.copy(escalationEnabled = it)
-                                )
-                                onConfigChanged(newConfig)
-                            },
-                            modifier = Modifier.scale(0.8f)
-                        )
+                        // Escalation Switch - put on same line as label
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Escalate",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Switch(
+                                checked = alertConfig.series.escalationEnabled,
+                                onCheckedChange = {
+                                    val newConfig = alertConfig.copy(
+                                        series = alertConfig.series.copy(escalationEnabled = it)
+                                    )
+                                    onConfigChanged(newConfig)
+                                },
+                                modifier = Modifier.scale(0.6f)
+                            )
+                        }
                     }
                 }
             }
@@ -905,10 +918,10 @@ fun CustomProfileConfigEditor(
             Text("Pattern:")
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                VibrationPattern.values().forEach { pattern ->
+                VibrationPattern.values().filter { it != VibrationPattern.CUSTOM && it != VibrationPattern.PULSE }.forEach { pattern ->
                     Row(
                         modifier = Modifier
                             .selectable(
@@ -927,10 +940,11 @@ fun CustomProfileConfigEditor(
                             selected = localConfig.vibration.pattern == pattern,
                             onClick = null
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = pattern.name.replace("_", " "),
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -941,7 +955,7 @@ fun CustomProfileConfigEditor(
             Text("Intensity:")
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 VibrationIntensity.values().forEach { intensity ->
@@ -963,10 +977,11 @@ fun CustomProfileConfigEditor(
                             selected = localConfig.vibration.intensity == intensity,
                             onClick = null
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = intensity.name.replace("_", " "),
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp
                         )
                     }
                 }
@@ -1014,7 +1029,7 @@ fun CustomProfileConfigEditor(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SoundType.values().forEach { type ->
+                SoundType.values().filter { it != SoundType.CUSTOM }.forEach { type ->
                     Row(
                         modifier = Modifier
                             .selectable(
@@ -1033,9 +1048,16 @@ fun CustomProfileConfigEditor(
                             selected = localConfig.sound.type == type,
                             onClick = null
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = type.name.replace("_", " "),
+                            text = when (type.name) {
+                                "CHIME" -> "Chime"
+                                "GENTLE" -> "Gentle"
+                                "CUSTOM" -> "Custom"
+                                "ALARM" -> "Alarm"
+                                "URGENT" -> "Urgent"
+                                else -> type.name.replace("_", " ")
+                            },
                             style = MaterialTheme.typography.bodySmall
                         )
                     }

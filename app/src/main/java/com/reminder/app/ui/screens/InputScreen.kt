@@ -271,7 +271,7 @@ fun loadInputScreenAlertLevelConfig(context: android.content.Context): com.remin
     }
 }
 
-// Compact Slider Date Picker Dialog Component
+// Compact Slider Date Picker Dialog Component with Smart Defaults
 @Composable
 fun DatePickerDialog(
     selectedDate: LocalDate,
@@ -282,6 +282,46 @@ fun DatePickerDialog(
     var tempYear by remember { mutableStateOf(selectedDate.year.toFloat()) }
     var tempMonth by remember { mutableStateOf((selectedDate.monthValue - 1).toFloat()) } // 0-based
     var tempDay by remember { mutableStateOf(selectedDate.dayOfMonth.toFloat()) }
+    
+    // Smart date suggestions based on current date and context
+    val smartDateSuggestions = remember(today) {
+        val suggestions = mutableListOf<Pair<String, LocalDate>>()
+        
+        // Add today and tomorrow
+        suggestions.add("Today" to today)
+        suggestions.add("Tomorrow" to today.plusDays(1))
+        
+        // Add upcoming weekdays
+        val weekdays = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+        val currentDayOfWeek = today.dayOfWeek.value % 7 // Convert to 0-6 (Sunday=0)
+        
+        weekdays.forEach { dayName ->
+            val targetDay = java.time.DayOfWeek.valueOf(dayName.uppercase())
+            val daysUntil = if (targetDay.value > currentDayOfWeek) {
+                targetDay.value - currentDayOfWeek
+            } else {
+                7 - (currentDayOfWeek - targetDay.value)
+            }
+            if (daysUntil in 1..6) {
+                suggestions.add(dayName to today.plusDays(daysUntil.toLong()))
+            }
+        }
+        
+        // Add weekend days
+        val saturday = today.plusDays(((6 - currentDayOfWeek + 7) % 7).toLong())
+        val sunday = today.plusDays(((0 - currentDayOfWeek + 7) % 7).toLong())
+        if (saturday.isAfter(today)) suggestions.add("Saturday" to saturday)
+        if (sunday.isAfter(today)) suggestions.add("Sunday" to sunday)
+        
+        // Add next week and end of month
+        suggestions.add("Next Week" to today.plusDays(7))
+        val endOfMonth = today.withDayOfMonth(today.lengthOfMonth())
+        if (endOfMonth.isAfter(today)) {
+            suggestions.add("End of Month" to endOfMonth)
+        }
+        
+        suggestions.take(9) // Limit to 9 suggestions for 3x3 grid
+    }
     
     // Helper functions for date formatting
     fun formatMonth(month: Float): String {
@@ -317,13 +357,13 @@ fun DatePickerDialog(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Title with current date preview
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 20.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
                     Text(
                         text = "📅 Select Date",
@@ -332,333 +372,220 @@ fun DatePickerDialog(
                         color = MaterialTheme.colorScheme.primary
                     )
                     
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     
                     // Compact date display
                     Text(
                         text = formatDate(tempYear, tempMonth, tempDay),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 
-                // Year with +/- buttons
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Year",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                val newYear = (tempYear - 1).coerceAtLeast(today.year - 5f)
-                                tempYear = newYear
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "−",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        
-                        Slider(
-                            value = tempYear,
-                            onValueChange = { tempYear = it },
-                            valueRange = (today.year - 5).toFloat()..(today.year + 10).toFloat(),
-                            steps = 14,
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            )
-                        )
-                        
-                        IconButton(
-                            onClick = { 
-                                val newYear = (tempYear + 1).coerceAtMost(today.year + 10f)
-                                tempYear = newYear
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "+",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    
-                    Text(
-                        text = "${tempYear.toInt()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Month with +/- buttons
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Month",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                val newMonth = if (tempMonth > 0) tempMonth - 1 else 11f
-                                tempMonth = newMonth
-                                // Adjust day if it exceeds max days in new month
-                                val maxDays = getMaxDays()
-                                if (tempDay > maxDays) {
-                                    tempDay = maxDays.toFloat()
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "−",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                        
-                        Slider(
-                            value = tempMonth,
-                            onValueChange = { 
-                                tempMonth = it
-                                // Adjust day if it exceeds max days in new month
-                                val maxDays = getMaxDays()
-                                if (tempDay > maxDays) {
-                                    tempDay = maxDays.toFloat()
-                                }
-                            },
-                            valueRange = 0f..11f,
-                            steps = 10,
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.secondary,
-                                activeTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f),
-                                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            )
-                        )
-                        
-                        IconButton(
-                            onClick = { 
-                                val newMonth = if (tempMonth < 11) tempMonth + 1 else 0f
-                                tempMonth = newMonth
-                                // Adjust day if it exceeds max days in new month
-                                val maxDays = getMaxDays()
-                                if (tempDay > maxDays) {
-                                    tempDay = maxDays.toFloat()
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "+",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-                    
-                    Text(
-                        text = formatMonth(tempMonth),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Day with +/- buttons
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Day",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                    
-                    val maxDays = getMaxDays()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(
-                            onClick = { 
-                                val newDay = if (tempDay > 1) tempDay - 1 else maxDays.toFloat()
-                                tempDay = newDay
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "−",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                        
-                        Slider(
-                            value = tempDay,
-                            onValueChange = { tempDay = it },
-                            valueRange = 1f..maxDays.toFloat(),
-                            steps = maxDays - 2,
-                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.tertiary,
-                                activeTrackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f),
-                                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                            )
-                        )
-                        
-                        IconButton(
-                            onClick = { 
-                                val newDay = if (tempDay < maxDays) tempDay + 1 else 1f
-                                tempDay = newDay
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Text(
-                                text = "+",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                        }
-                    }
-                    
-                    Text(
-                        text = "${tempDay.toInt()}${getDaySuffix(tempDay.toInt())}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.height(20.dp))
-                
-                // Quick Date Selection Buttons
+                // Smart Date Suggestions (Compact 3x3 Grid)
                 Text(
-                    text = "Quick Select",
+                    text = "🎯 Smart Suggestions",
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
                 
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier.padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(listOf("Today", "Tomorrow", "Next Week")) { quickDate ->
-                        val isToday = quickDate == "Today"
+                    items(smartDateSuggestions) { (label, date) ->
+                        val isToday = label == "Today"
+                        val isSelected = date.dayOfMonth == tempDay.toInt() &&
+                                       date.monthValue == tempMonth.toInt() + 1 &&
+                                       date.year == tempYear.toInt()
+                        
                         OutlinedButton(
                             onClick = {
-                                when (quickDate) {
-                                    "Today" -> {
-                                        tempYear = today.year.toFloat()
-                                        tempMonth = (today.monthValue - 1).toFloat()
-                                        tempDay = today.dayOfMonth.toFloat()
-                                    }
-                                    "Tomorrow" -> {
-                                        val tomorrow = today.plusDays(1)
-                                        tempYear = tomorrow.year.toFloat()
-                                        tempMonth = (tomorrow.monthValue - 1).toFloat()
-                                        tempDay = tomorrow.dayOfMonth.toFloat()
-                                    }
-                                    "Next Week" -> {
-                                        val nextWeek = today.plusDays(7)
-                                        tempYear = nextWeek.year.toFloat()
-                                        tempMonth = (nextWeek.monthValue - 1).toFloat()
-                                        tempDay = nextWeek.dayOfMonth.toFloat()
-                                    }
-                                }
+                                tempYear = date.year.toFloat()
+                                tempMonth = (date.monthValue - 1).toFloat()
+                                tempDay = date.dayOfMonth.toFloat()
                             },
-                            modifier = Modifier.height(32.dp),
+                            modifier = Modifier.height(28.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isToday) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                contentColor = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                                containerColor = when {
+                                    isSelected -> MaterialTheme.colorScheme.primary
+                                    isToday -> MaterialTheme.colorScheme.primaryContainer
+                                    else -> Color.Transparent
+                                },
+                                contentColor = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                                    isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
                             )
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                if (isToday) {
-                                    // Animated Today icon
-                                    Text(
-                                        text = "🌟",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        modifier = Modifier.padding(end = 4.dp)
-                                    )
-                                    Text(
-                                        text = "Today",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                } else {
-                                    when (quickDate) {
-                                        "Tomorrow" -> {
-                                            Text(
-                                                text = "📅",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                modifier = Modifier.padding(end = 4.dp)
-                                            )
-                                        }
-                                        "Next Week" -> {
-                                            Text(
-                                                text = "🗓️",
-                                                style = MaterialTheme.typography.titleSmall,
-                                                modifier = Modifier.padding(end = 4.dp)
-                                            )
-                                        }
+                            Text(
+                                text = label.replace(" ", "\n"),
+                                fontSize = 8.sp,
+                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                                lineHeight = 8.sp
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Compact Date Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Month control
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Month",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val newMonth = if (tempMonth > 0) tempMonth - 1 else 11f
+                                    tempMonth = newMonth
+                                    val maxDays = getMaxDays().toFloat()
+                                    if (tempDay > maxDays) {
+                                        tempDay = maxDays
                                     }
-                                    Text(
-                                        text = quickDate,
-                                        fontSize = 10.sp
-                                    )
-                                }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("−", style = MaterialTheme.typography.bodySmall)
+                            }
+                            
+                            Text(
+                                text = formatMonth(tempMonth),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.width(40.dp)
+                            )
+                            
+                            IconButton(
+                                onClick = {
+                                    val newMonth = if (tempMonth < 11) tempMonth + 1 else 0f
+                                    tempMonth = newMonth
+                                    val maxDays = getMaxDays().toFloat()
+                                    if (tempDay > maxDays) {
+                                        tempDay = maxDays
+                                    }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("+", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    
+                    // Day control
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Day",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            val maxDays = getMaxDays().toFloat()
+                            IconButton(
+                                onClick = {
+                                    val newDay = if (tempDay > 1) tempDay - 1 else maxDays
+                                    tempDay = newDay
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("−", style = MaterialTheme.typography.bodySmall)
+                            }
+                            
+                            Text(
+                                text = "${tempDay.toInt()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.width(40.dp)
+                            )
+                            
+                            IconButton(
+                                onClick = {
+                                    val newDay = if (tempDay < maxDays) tempDay + 1 else 1f
+                                    tempDay = newDay
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("+", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    
+                    // Year control
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Year",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val newYear = (tempYear - 1).coerceAtLeast(today.year - 5f)
+                                    tempYear = newYear
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("−", style = MaterialTheme.typography.bodySmall)
+                            }
+                            
+                            Text(
+                                text = "${tempYear.toInt()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.width(40.dp)
+                            )
+                            
+                            IconButton(
+                                onClick = {
+                                    val newYear = (tempYear + 1).coerceAtMost(today.year + 10f)
+                                    tempYear = newYear
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("+", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
                 // Action Buttons
                 Row(
@@ -670,7 +597,7 @@ fun DatePickerDialog(
                         onClick = onDismiss,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontSize = 12.sp)
                     }
                     
                     Button(
@@ -687,7 +614,7 @@ fun DatePickerDialog(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("Set Date")
+                        Text("Set Date", fontSize = 12.sp)
                     }
                 }
             }
@@ -708,7 +635,7 @@ fun getDaySuffix(day: Int): String {
     }
 }
 
-// Modern Slider Time Picker Dialog Component
+// Modern Slider Time Picker Dialog Component with Smart Defaults
 @Composable
 fun TimePickerDialog(
     selectedTime: LocalTime,
@@ -720,6 +647,25 @@ fun TimePickerDialog(
     var minute by remember { mutableStateOf(selectedTime.minute.toFloat()) }
     
     android.util.Log.d("TimePickerDialog", "Dialog opened with selectedTime=$selectedTime, hour=$hour, minute=$minute")
+    
+    // Smart time defaults based on current time
+    val currentTime = LocalTime.now()
+    val smartTimeDefaults = remember(currentTime) {
+        val morningStart = 6f
+        val morningEnd = 11f
+        val afternoonStart = 12f
+        val afternoonEnd = 17f
+        val eveningStart = 18f
+        val eveningEnd = 22f
+        
+        when {
+            currentTime.hour < 6 -> listOf(8f, 9f, 10f) // Early morning -> suggest morning times
+            currentTime.hour in 6..11 -> listOf(12f, 14f, 16f) // Morning -> suggest afternoon times
+            currentTime.hour in 12..17 -> listOf(18f, 19f, 20f) // Afternoon -> suggest evening times
+            currentTime.hour in 18..22 -> listOf(8f, 9f, 14f) // Evening -> suggest next day morning/afternoon
+            else -> listOf(9f, 12f, 15f) // Late night -> suggest next day times
+        }
+    }
     
     // Helper functions for time formatting
     fun formatHour(h: Float): String {
@@ -745,6 +691,44 @@ fun TimePickerDialog(
         return String.format("%02d:%02d %s", hourInt, m.toInt(), period)
     }
     
+    // Smart time suggestions based on context
+    val smartTimeSuggestions = remember(currentTime) {
+        val baseSuggestions = mutableListOf<Pair<String, Pair<Float, Float>>>()
+        
+        // Add smart defaults first
+        smartTimeDefaults.forEach { h ->
+            baseSuggestions.add("${h.toInt()}:00 AM".replace("AM", if (h >= 12) "PM" else "AM") to Pair(h, 0f))
+        }
+        
+        // Add common times
+        val commonTimes = listOf(
+            "7:00 AM" to Pair(7f, 0f),
+            "8:00 AM" to Pair(8f, 0f),
+            "9:00 AM" to Pair(9f, 0f),
+            "10:00 AM" to Pair(10f, 0f),
+            "11:00 AM" to Pair(11f, 0f),
+            "12:00 PM" to Pair(12f, 0f),
+            "1:00 PM" to Pair(13f, 0f),
+            "2:00 PM" to Pair(14f, 0f),
+            "3:00 PM" to Pair(15f, 0f),
+            "4:00 PM" to Pair(16f, 0f),
+            "5:00 PM" to Pair(17f, 0f),
+            "6:00 PM" to Pair(18f, 0f),
+            "7:00 PM" to Pair(19f, 0f),
+            "8:00 PM" to Pair(20f, 0f),
+            "9:00 PM" to Pair(21f, 0f)
+        )
+        
+        // Add common times that aren't already in smart defaults
+        commonTimes.forEach { (label, time) ->
+            if (!baseSuggestions.any { it.second == time }) {
+                baseSuggestions.add(label to time)
+            }
+        }
+        
+        baseSuggestions.take(12) // Limit to 12 suggestions for better UI
+    }
+    
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -756,64 +740,103 @@ fun TimePickerDialog(
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Title with current time preview
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 24.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
                     Text(
                         text = "⏰ Select Time",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     
                     // Large time display
                     Text(
                         text = formatTime(hour, minute),
-                        style = MaterialTheme.typography.displaySmall,
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 
-                // Hour Slider
+                // Smart Time Suggestions (Compact)
+                Text(
+                    text = "🎯 Smart Suggestions",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(smartTimeSuggestions.take(8)) { (timeLabel, timePair) ->
+                        val (h, m) = timePair
+                        val isSmartDefault = smartTimeDefaults.any { it == h }
+                        OutlinedButton(
+                            onClick = {
+                                hour = h
+                                minute = m
+                            },
+                            modifier = Modifier.height(28.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (isSmartDefault) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                contentColor = if (isSmartDefault) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                text = timeLabel.replace(":00 ", "").replace(" AM", "am").replace(" PM", "pm"),
+                                fontSize = 10.sp,
+                                fontWeight = if (isSmartDefault) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Hour Slider (Compact)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "Hour",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
                     
                      Row(
                          modifier = Modifier.fillMaxWidth(),
                          verticalAlignment = Alignment.CenterVertically,
-                         horizontalArrangement = Arrangement.spacedBy(8.dp)
+                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                      ) {
                          IconButton(
                              onClick = {
                                  val newHour = (hour.toInt() - 1).coerceIn(0, 23)
                                  hour = newHour.toFloat()
                              },
-                             modifier = Modifier.size(48.dp)
+                             modifier = Modifier.size(32.dp)
                          ) {
-                             Text("−", style = MaterialTheme.typography.titleLarge)
+                             Text("−", style = MaterialTheme.typography.bodyMedium)
                          }
                          
                          Slider(
                              value = hour,
                              onValueChange = { hour = it },
                              valueRange = 0f..23f,
-                             steps = 22, // 24 values - 2 endpoints = 22 steps
+                             steps = 22,
                              modifier = Modifier.weight(1f),
                              colors = SliderDefaults.colors(
                                  thumbColor = MaterialTheme.colorScheme.primary,
@@ -825,56 +848,57 @@ fun TimePickerDialog(
                          IconButton(
                              onClick = {
                                  val newHour = (hour.toInt() + 1).coerceIn(0, 23)
+                                 hour = newHour.toFloat()
                              },
-                             modifier = Modifier.size(48.dp)
+                             modifier = Modifier.size(32.dp)
                          ) {
-                             Text("+", style = MaterialTheme.typography.titleLarge)
+                             Text("+", style = MaterialTheme.typography.bodyMedium)
                          }
                      }
                     
                     Text(
                         text = formatHour(hour),
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
-                // Minute Slider
+                // Minute Slider (Compact)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "Minute",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
                     
                      Row(
                          modifier = Modifier.fillMaxWidth(),
                          verticalAlignment = Alignment.CenterVertically,
-                         horizontalArrangement = Arrangement.spacedBy(8.dp)
+                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                      ) {
                          IconButton(
                              onClick = {
                                  val newMinute = (minute.toInt() - 1).coerceIn(0, 59)
                                  minute = newMinute.toFloat()
                              },
-                             modifier = Modifier.size(48.dp)
+                             modifier = Modifier.size(32.dp)
                          ) {
-                             Text("−", style = MaterialTheme.typography.titleLarge)
+                             Text("−", style = MaterialTheme.typography.bodyMedium)
                          }
                          
                          Slider(
                              value = minute,
                              onValueChange = { minute = it },
                              valueRange = 0f..59f,
-                             steps = 58, // 60 values - 2 endpoints = 58 steps
+                             steps = 58,
                              modifier = Modifier.weight(1f),
                              colors = SliderDefaults.colors(
                                  thumbColor = MaterialTheme.colorScheme.secondary,
@@ -886,66 +910,55 @@ fun TimePickerDialog(
                          IconButton(
                              onClick = {
                                  val newMinute = (minute.toInt() + 1).coerceIn(0, 59)
+                                 minute = newMinute.toFloat()
                              },
-                             modifier = Modifier.size(48.dp)
+                             modifier = Modifier.size(32.dp)
                          ) {
-                             Text("+", style = MaterialTheme.typography.titleLarge)
+                             Text("+", style = MaterialTheme.typography.bodyMedium)
                          }
                      }
                     
                     Text(
-                        text = String.format("%02d minutes", minute.toInt()),
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = String.format("%02d min", minute.toInt()),
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
-                // Quick Time Selection Chips
+                // Quick Intervals (15, 30, 45 minutes)
                 Text(
-                    text = "Quick Select",
+                    text = "Quick Intervals",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp)
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
                 
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(listOf("9AM", "12PM", "3PM", "6PM", "8AM", "2PM", "5PM", "7PM")) { time ->
+                    listOf(0, 15, 30, 45).forEach { min ->
                         OutlinedButton(
-                            onClick = {
-                                val (h, m) = when (time) {
-                                    "8AM" -> Pair(8f, 0f)
-                                    "9AM" -> Pair(9f, 0f)
-                                    "12PM" -> Pair(12f, 0f)
-                                    "2PM" -> Pair(14f, 0f)
-                                    "3PM" -> Pair(15f, 0f)
-                                    "5PM" -> Pair(17f, 0f)
-                                    "6PM" -> Pair(18f, 0f)
-                                    "7PM" -> Pair(19f, 0f)
-                                    else -> Pair(hour, minute)
-                                }
-                                hour = h
-                                minute = m
-                            },
-                            modifier = Modifier.height(32.dp)
+                            onClick = { minute = min.toFloat() },
+                            modifier = Modifier.weight(1f).height(28.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (minute.toInt() == min) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                                contentColor = if (minute.toInt() == min) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.secondary
+                            )
                         ) {
                             Text(
-                                text = time,
-                                fontSize = 12.sp
+                                text = "${min}m",
+                                fontSize = 10.sp
                             )
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // Action Buttons
                 Row(
@@ -957,7 +970,7 @@ fun TimePickerDialog(
                         onClick = onDismiss,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", fontSize = 12.sp)
                     }
                     
                     Button(
@@ -969,7 +982,7 @@ fun TimePickerDialog(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("Set Time")
+                        Text("Set Time", fontSize = 12.sp)
                     }
                 }
             }

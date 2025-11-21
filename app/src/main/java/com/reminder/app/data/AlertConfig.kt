@@ -72,7 +72,7 @@ data class AlertConfig(
                 ),
                 sound = SoundConfig(
                     enabled = true,
-                    type = SoundType.DEFAULT,
+                    type = SoundType.CHIME,
                     volume = 0.8f,
                     seriesCount = 3,
                     seriesInterval = 5000
@@ -256,7 +256,7 @@ enum class VibrationIntensity {
 @Serializable
 data class SoundConfig(
     val enabled: Boolean = true,
-    val type: SoundType = SoundType.DEFAULT,
+    val type: SoundType = SoundType.CHIME,
     val volume: Float = 0.8f,
     val seriesCount: Int = 1,
     val seriesInterval: Int = 2000, // ms between series
@@ -265,7 +265,7 @@ data class SoundConfig(
 
 @Serializable
 enum class SoundType {
-    DEFAULT,      // System default notification
+    CHIME,        // System default notification sound
     ALARM,        // System alarm sound
     GENTLE,       // Soft notification sound
     URGENT,       // Loud attention sound

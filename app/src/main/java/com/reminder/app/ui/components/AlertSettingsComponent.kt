@@ -95,8 +95,8 @@ fun AlertSettingsSection(
                         onTypeSelected = { onAlertConfigChange(alertConfig.copy(alertType = it)) }
                     )
                     
-                    // Repeat Configuration
-                    RepeatConfigurationSection(
+                    // Repeat Configuration - Use basic selector
+                    BasicRepeatPatternSelector(
                         repeatPattern = repeatPattern,
                         onRepeatPatternChange = onRepeatPatternChange
                     )
@@ -391,22 +391,28 @@ fun VibrationConfigurationSection(
                 VibrationPattern.SINGLE to "Single",
                 VibrationPattern.DOUBLE to "Double",
                 VibrationPattern.TRIPLE to "Triple",
-                VibrationPattern.LONG to "Long",
-                VibrationPattern.PULSE to "Pulse"
+                VibrationPattern.LONG to "Long"
             )
             
-            // Pattern selector chips
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Pattern selector - use RadioButtons for cleaner layout
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 patterns.forEach { (pattern, name) ->
-                    @OptIn(ExperimentalMaterial3Api::class)
-                    FilterChip(
-                        onClick = { onVibrationConfigChange(vibrationConfig.copy(pattern = pattern)) },
-                        label = { Text(name, fontSize = 10.sp) },
-                        selected = vibrationConfig.pattern == pattern
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = vibrationConfig.pattern == pattern,
+                            onClick = { onVibrationConfigChange(vibrationConfig.copy(pattern = pattern)) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
             
@@ -542,45 +548,29 @@ fun SoundConfigurationSection(
             )
             
             val soundTypes = listOf(
-                SoundType.DEFAULT to "Default",
+                SoundType.CHIME to "Chime",
                 SoundType.ALARM to "Alarm",
                 SoundType.GENTLE to "Gentle",
                 SoundType.URGENT to "Urgent"
             )
             
-            var expanded by remember { mutableStateOf(false) }
-            @OptIn(ExperimentalMaterial3Api::class)
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
+            // Sound type selector - use RadioButtons for cleaner layout
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedTextField(
-                    value = soundTypes.find { it.first == soundConfig.type }?.second ?: "Default",
-                    onValueChange = { },
-                    readOnly = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(),
-                    trailingIcon = {
-                        @OptIn(ExperimentalMaterial3Api::class)
-                        IconButton(onClick = { expanded = !expanded }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select sound type")
-                        }
-                    }
-                )
-                
-                @OptIn(ExperimentalMaterial3Api::class)
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    soundTypes.forEach { (type, description) ->
-                        DropdownMenuItem(
-                            text = { Text(description) },
-                            onClick = {
-                                onSoundConfigChange(soundConfig.copy(type = type))
-                                expanded = false
-                            }
+                soundTypes.forEach { (type, description) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = soundConfig.type == type,
+                            onClick = { onSoundConfigChange(soundConfig.copy(type = type)) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -790,17 +780,5 @@ private fun getAlertTypeDescription(type: AlertType): String {
         AlertType.NOTIFICATION_VIBRATION -> "Notification with vibration feedback"
         AlertType.NOTIFICATION_SOUND -> "Notification with custom sound"
         AlertType.FULL_ALERT -> "All alert features enabled"
-    }
-}
-
-private fun getIntervalUnit(type: RepeatType): String {
-    return when (type) {
-        RepeatType.MINUTELY -> "minute(s)"
-        RepeatType.HOURLY -> "hour(s)"
-        RepeatType.DAILY -> "day(s)"
-        RepeatType.WEEKLY -> "week(s)"
-        RepeatType.MONTHLY -> "month(s)"
-        RepeatType.YEARLY -> "year(s)"
-        else -> ""
     }
 }

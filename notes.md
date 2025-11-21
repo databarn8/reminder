@@ -1,0 +1,4 @@
+psace.pngYou cannot change the way I want it.  So let me leave that way for now. But I see lines with words warpped. may be use low case or short form will solve that problem.  besides the space between lines on this page is too much.  you can reduce them as much as possible.  
+
+I don't see the repeat patten: minutes, hours, days, week and month.  and when it should end like how many times.  Please search online calendar design, I want a simple design with good selections
+another one will be when you will do alerm, for example 30 minutes before, 5 hours ago etc.  The trick is it becoms very complicated for user.  Please come up some default 
