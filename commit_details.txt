@@ -1,0 +1,19 @@
+commit 9e1cf8541a4c8698257cd70a9225ade885d4f5ea
+Author:     yun hao <yunhao@yuns-Mac-mini.local>
+AuthorDate: Thu Nov 20 22:34:18 2025 -0500
+Commit:     yun hao <yunhao@yuns-Mac-mini.local>
+CommitDate: Thu Nov 20 22:34:18 2025 -0500
+
+    Fix custom profile selection display issue
+    
+    - Fix InputScreen to properly display selected custom profile name in alert level dropdown
+    - Fix ReminderListScreen to show custom profile name next to alert level icon
+    - Separate built-in and custom profile options in dropdowns
+    - Ensure all custom profiles (like 'hard') appear as individual selectable options
+    
+    Resolves issue where only first custom profile was selectable in alert level selection screens.
+
+ .../app/ui/screens/AlertSettingsScreenFixed.kt     | 897 ++++++++++++++++-----
+ .../com/reminder/app/ui/screens/InputScreen.kt     |  55 +-
+ .../reminder/app/ui/screens/ReminderListScreen.kt  | 105 ++-
+ 3 files changed, 805 insertions(+), 252 deletions(-)

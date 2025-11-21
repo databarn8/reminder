@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.scale
 import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.AlertLevel
 import com.reminder.app.data.AlertLevelConfig
@@ -110,7 +111,7 @@ fun AlertSettingsScreenFixed(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Configure how alerts behave for different importance levels",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -155,7 +156,7 @@ fun AlertSettingsScreenFixed(
                         ) {
                             Text(
                                 text = "Custom Profiles",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -396,7 +397,7 @@ fun AlertLevelSelector(
         ) {
             Text(
                 text = "Select Alert Level",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -494,10 +495,6 @@ fun AlertLevelConfiguration(
     alertLevelConfig: AlertLevelConfig,
     onConfigChanged: (AlertConfig) -> Unit
 ) {
-    // Use a key to force recomposition when custom profile changes
-    val configKey = remember(alertLevel, selectedCustomProfile) {
-        "${alertLevel.name}_${selectedCustomProfile ?: ""}"
-    }
     
     val alertConfig = when {
         alertLevel == AlertLevel.CUSTOM && selectedCustomProfile != null -> {
@@ -523,98 +520,323 @@ fun AlertLevelConfiguration(
                         "Configuration for ${alertLevel.name} Level"
                     }
                 },
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Vibration Settings Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Vibration",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Switch(
+                            checked = alertConfig.vibration.enabled,
+                            onCheckedChange = {
+                                val newConfig = alertConfig.copy(
+                                    vibration = alertConfig.vibration.copy(enabled = it)
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            modifier = Modifier.scale(0.8f)
+                        )
+                    }
+                    
+                    if (alertConfig.vibration.enabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Pattern Selection
+                        Text(
+                            text = "Pattern",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            VibrationPattern.values().forEach { pattern ->
+                                Row(
+                                    modifier = Modifier
+                                        .selectable(
+                                            selected = alertConfig.vibration.pattern == pattern,
+                                            onClick = {
+                                                val newConfig = alertConfig.copy(
+                                                    vibration = alertConfig.vibration.copy(pattern = pattern)
+                                                )
+                                                onConfigChanged(newConfig)
+                                            }
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = alertConfig.vibration.pattern == pattern,
+                                        onClick = null
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = pattern.name.replace("_", " "),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Intensity Selection
+                        Text(
+                            text = "Intensity",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            VibrationIntensity.values().forEach { intensity ->
+                                Row(
+                                    modifier = Modifier
+                                        .selectable(
+                                            selected = alertConfig.vibration.intensity == intensity,
+                                            onClick = {
+                                                val newConfig = alertConfig.copy(
+                                                    vibration = alertConfig.vibration.copy(intensity = intensity)
+                                                )
+                                                onConfigChanged(newConfig)
+                                            }
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = alertConfig.vibration.intensity == intensity,
+                                        onClick = null
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = intensity.name.replace("_", " "),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Vibration Settings
-            Text(
-                text = "Vibration",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Row(
+            // Sound Settings Card
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text("Enabled")
-                Switch(
-                    checked = alertConfig.vibration.enabled,
-                    onCheckedChange = {
-                        val newConfig = alertConfig.copy(
-                            vibration = alertConfig.vibration.copy(enabled = it)
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Sound",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
                         )
-                        onConfigChanged(newConfig)
+                        Switch(
+                            checked = alertConfig.sound.enabled,
+                            onCheckedChange = {
+                                val newConfig = alertConfig.copy(
+                                    sound = alertConfig.sound.copy(enabled = it)
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            modifier = Modifier.scale(0.8f)
+                        )
                     }
-                )
-            }
-            
-            if (alertConfig.vibration.enabled) {
-                Text("Pattern: ${alertConfig.vibration.pattern.name}")
-                Text("Intensity: ${alertConfig.vibration.intensity.name}")
+                    
+                    if (alertConfig.sound.enabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Sound Type Selection
+                        Text(
+                            text = "Type",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            SoundType.values().forEach { type ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = alertConfig.sound.type == type,
+                                            onClick = {
+                                                val newConfig = alertConfig.copy(
+                                                    sound = alertConfig.sound.copy(type = type)
+                                                )
+                                                onConfigChanged(newConfig)
+                                            }
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = alertConfig.sound.type == type,
+                                        onClick = null
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = type.name.replace("_", " "),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Volume Slider
+                        Text(
+                            text = "Volume: ${(alertConfig.sound.volume * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertConfig.sound.volume,
+                            onValueChange = {
+                                val newConfig = alertConfig.copy(
+                                    sound = alertConfig.sound.copy(volume = it)
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            valueRange = 0f..1f,
+                            steps = 9
+                        )
+                    }
+                }
             }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Sound Settings
-            Text(
-                text = "Sound",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Row(
+            // Series Settings Card
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Text("Enabled")
-                Switch(
-                    checked = alertConfig.sound.enabled,
-                    onCheckedChange = {
-                        val newConfig = alertConfig.copy(
-                            sound = alertConfig.sound.copy(enabled = it)
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Repeat & Escalation",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
                         )
-                        onConfigChanged(newConfig)
-                    }
-                )
-            }
-            
-            if (alertConfig.sound.enabled) {
-                Text("Type: ${alertConfig.sound.type.name}")
-                Text("Volume: ${(alertConfig.sound.volume * 100).toInt()}%")
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Series Settings
-            Text(
-                text = "Repeat & Escalation",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Enabled")
-                Switch(
-                    checked = alertConfig.series.enabled,
-                    onCheckedChange = {
-                        val newConfig = alertConfig.copy(
-                            series = alertConfig.series.copy(enabled = it)
+                        Switch(
+                            checked = alertConfig.series.enabled,
+                            onCheckedChange = {
+                                val newConfig = alertConfig.copy(
+                                    series = alertConfig.series.copy(enabled = it)
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            modifier = Modifier.scale(0.8f)
                         )
-                        onConfigChanged(newConfig)
                     }
-                )
-            }
-            
-            if (alertConfig.series.enabled) {
-                Text("Max attempts: ${alertConfig.series.maxAttempts}")
-                Text("Interval: ${alertConfig.series.intervalMinutes} minutes")
-                Text("Escalation: ${if (alertConfig.series.escalationEnabled) "Enabled" else "Disabled"}")
+                    
+                    if (alertConfig.series.enabled) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Max Attempts Slider
+                        Text(
+                            text = "Max Attempts: ${alertConfig.series.maxAttempts}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertConfig.series.maxAttempts.toFloat(),
+                            onValueChange = {
+                                val newConfig = alertConfig.copy(
+                                    series = alertConfig.series.copy(maxAttempts = it.toInt())
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            valueRange = 1f..10f,
+                            steps = 8
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Interval Slider
+                        Text(
+                            text = "Interval: ${alertConfig.series.intervalMinutes} min",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = alertConfig.series.intervalMinutes.toFloat(),
+                            onValueChange = {
+                                val newConfig = alertConfig.copy(
+                                    series = alertConfig.series.copy(intervalMinutes = it.toInt())
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            valueRange = 1f..30f,
+                            steps = 28
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // Escalation Switch
+                        Text(
+                            text = "Escalation: ${if (alertConfig.series.escalationEnabled) "On" else "Off"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Switch(
+                            checked = alertConfig.series.escalationEnabled,
+                            onCheckedChange = {
+                                val newConfig = alertConfig.copy(
+                                    series = alertConfig.series.copy(escalationEnabled = it)
+                                )
+                                onConfigChanged(newConfig)
+                            },
+                            modifier = Modifier.scale(0.8f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -640,7 +862,7 @@ fun CustomProfileConfigEditor(
         // Vibration Settings
         Text(
             text = "Vibration Settings",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -650,7 +872,10 @@ fun CustomProfileConfigEditor(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Enabled")
+            Text(
+                text = if (localConfig.vibration.enabled) "On" else "Off",
+                style = MaterialTheme.typography.bodySmall
+            )
             Switch(
                 checked = localConfig.vibration.enabled,
                 onCheckedChange = {
@@ -659,7 +884,8 @@ fun CustomProfileConfigEditor(
                     )
                     localConfig = newConfig
                     onConfigChanged(newConfig)
-                }
+                },
+                modifier = Modifier.scale(0.8f)
             )
         }
         
@@ -692,7 +918,10 @@ fun CustomProfileConfigEditor(
                             onClick = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(pattern.name.replace("_", " "))
+                        Text(
+                            text = pattern.name.replace("_", " "),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -725,7 +954,10 @@ fun CustomProfileConfigEditor(
                             onClick = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(intensity.name.replace("_", " "))
+                        Text(
+                            text = intensity.name.replace("_", " "),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -736,7 +968,7 @@ fun CustomProfileConfigEditor(
         // Sound Settings
         Text(
             text = "Sound Settings",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -746,7 +978,10 @@ fun CustomProfileConfigEditor(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Enabled")
+            Text(
+                text = if (localConfig.sound.enabled) "On" else "Off",
+                style = MaterialTheme.typography.bodySmall
+            )
             Switch(
                 checked = localConfig.sound.enabled,
                 onCheckedChange = {
@@ -755,7 +990,8 @@ fun CustomProfileConfigEditor(
                     )
                     localConfig = newConfig
                     onConfigChanged(newConfig)
-                }
+                },
+                modifier = Modifier.scale(0.8f)
             )
         }
         
@@ -788,7 +1024,10 @@ fun CustomProfileConfigEditor(
                             onClick = null
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(type.name.replace("_", " "))
+                        Text(
+                            text = type.name.replace("_", " "),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -815,7 +1054,7 @@ fun CustomProfileConfigEditor(
         // Series Settings
         Text(
             text = "Repeat & Escalation Settings",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -825,7 +1064,10 @@ fun CustomProfileConfigEditor(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Enabled")
+            Text(
+                text = if (localConfig.series.enabled) "On" else "Off",
+                style = MaterialTheme.typography.bodySmall
+            )
             Switch(
                 checked = localConfig.series.enabled,
                 onCheckedChange = {
@@ -834,7 +1076,8 @@ fun CustomProfileConfigEditor(
                     )
                     localConfig = newConfig
                     onConfigChanged(newConfig)
-                }
+                },
+                modifier = Modifier.scale(0.8f)
             )
         }
         
@@ -854,7 +1097,11 @@ fun CustomProfileConfigEditor(
                 valueRange = 1f..10f,
                 steps = 8
             )
-            Text("${localConfig.series.maxAttempts}")
+            Text(
+                text = "${localConfig.series.maxAttempts}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -871,7 +1118,11 @@ fun CustomProfileConfigEditor(
                 valueRange = 1f..30f,
                 steps = 28
             )
-            Text("${localConfig.series.intervalMinutes}")
+            Text(
+                text = "${localConfig.series.intervalMinutes}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             
             Spacer(modifier = Modifier.height(8.dp))
             
@@ -880,7 +1131,10 @@ fun CustomProfileConfigEditor(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Escalation")
+                Text(
+                    text = if (localConfig.series.escalationEnabled) "On" else "Off",
+                    style = MaterialTheme.typography.bodySmall
+                )
                 Switch(
                     checked = localConfig.series.escalationEnabled,
                     onCheckedChange = {

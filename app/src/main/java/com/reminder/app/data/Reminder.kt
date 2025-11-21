@@ -2,6 +2,7 @@ package com.reminder.app.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.Ignore
 import com.reminder.app.data.RepeatType
 
 enum class TriggerType {
@@ -63,7 +64,8 @@ data class Reminder(
     val triggerPoints: String? = null, // JSON string of trigger points, defaults to AT_DUE_TIME if null
     val repeatPattern: String? = null, // JSON string for RepeatPattern data structure
     val alertConfig: String? = null, // JSON string for AlertConfig data structure
-    val alertLevel: String = "LOW" // Alert level: LOW, MEDIUM, HIGH, URGENT, or custom profile name
+    val alertLevel: String = "LOW", // Alert level: LOW, MEDIUM, HIGH, URGENT, or custom profile name
+    val customProfileName: String? = null // Store custom profile name separately for clarity
 ) {
     fun getTriggerPointsList(): List<TriggerPoint> {
         return try {
@@ -105,11 +107,18 @@ data class Reminder(
             AlertLevel.CUSTOM // Fallback to CUSTOM for unrecognized values
         }
     }
-    
-    fun getCustomProfileName(): String? {
+    // Getter for customProfileName field to avoid Room conflicts
+    @Ignore
+    fun getCustomProfileNameFromField(): String? {
+        // First check if we have a separate custom profile name field
+        if (!customProfileName.isNullOrBlank()) {
+            return customProfileName
+        }
+        
+        // Fallback to checking alertLevel field for backward compatibility
         return when (alertLevel.uppercase()) {
             "LOW", "MEDIUM", "HIGH", "URGENT", "CUSTOM" -> null
-            else -> alertLevel // Return the actual custom profile name
+            else -> alertLevel // Return actual custom profile name
         }
     }
     
@@ -234,6 +243,7 @@ data class Reminder(
                 RepeatType.CUSTOM -> {
                     if (pattern.daysOfWeek != null) {
                         var tempNext = next.plusDays(1)
+                        // Find next matching day of week
                         while (tempNext.dayOfWeek !in pattern.daysOfWeek!!) {
                             tempNext = tempNext.plusDays(1)
                         }
