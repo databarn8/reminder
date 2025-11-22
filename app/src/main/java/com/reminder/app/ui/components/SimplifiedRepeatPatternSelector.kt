@@ -62,7 +62,8 @@ fun SimplifiedRepeatPatternSelector(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            userScrollEnabled = false
         ) {
             items(quickPatterns) { pattern ->
                 val isSelected = repeatPattern.type == pattern.type && repeatPattern.interval == pattern.interval
@@ -116,7 +117,8 @@ fun SimplifiedRepeatPatternSelector(
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                userScrollEnabled = false
             ) {
                 items(endOptions) { (label, count) ->
                     val isSelected = repeatPattern.endDate != null && 

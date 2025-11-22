@@ -53,7 +53,8 @@ fun SimplifiedAlertTimingSelector(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            userScrollEnabled = false
         ) {
             items(quickOptions.size) { index ->
                 val (label, triggerPoint) = quickOptions[index]
