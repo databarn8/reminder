@@ -106,8 +106,8 @@ fun AlertSettingsScreenFixed(
                         ) {
                             Text(
                                 text = "Alert Levels",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -373,8 +373,8 @@ fun AlertLevelSelector(
         ) {
             Text(
                 text = "Select Alert Level",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(4.dp))
             
@@ -409,7 +409,8 @@ fun AlertLevelSelector(
                                         else -> level.name
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -442,7 +443,8 @@ fun AlertLevelSelector(
                                         else -> level.name
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -484,7 +486,8 @@ fun AlertLevelSelector(
                                 Text(
                                     text = profileName,
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -524,11 +527,11 @@ fun AlertLevelConfiguration(
                         "Configuration for $selectedCustomProfile"
                     }
                     else -> {
-                        "Configuration for ${alertLevel.name} Level"
+                        "Configuration for ${alertLevel.name.lowercase().replaceFirstChar { it.uppercase() }} level"
                     }
                 },
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(6.dp))
             
@@ -551,7 +554,7 @@ fun AlertLevelConfiguration(
                         Text(
                             text = "Vibration",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                         Switch(
                             checked = alertConfig.vibration.enabled,
@@ -599,9 +602,9 @@ fun AlertLevelConfiguration(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = pattern.name.replace("_", " "),
+                                        text = pattern.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 11.sp
+                                        fontSize = 9.sp
                                     )
                                 }
                             }
@@ -640,9 +643,9 @@ fun AlertLevelConfiguration(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = intensity.name.replace("_", " "),
+                                        text = intensity.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() },
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 11.sp
+                                        fontSize = 9.sp
                                     )
                                 }
                             }
@@ -672,7 +675,7 @@ fun AlertLevelConfiguration(
                         Text(
                             text = "Sound",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                         Switch(
                             checked = alertConfig.sound.enabled,
@@ -700,7 +703,7 @@ fun AlertLevelConfiguration(
                             horizontalArrangement = Arrangement.spacedBy(2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SoundType.values().filter { it != SoundType.CUSTOM }.forEach { type ->
+                            SoundType.values().filter { it != SoundType.CUSTOM && it != SoundType.URGENT }.forEach { type ->
                                 Row(
                                     modifier = Modifier
                                         .selectable(
@@ -725,11 +728,10 @@ fun AlertLevelConfiguration(
                                             "GENTLE" -> "Gentle"
                                             "CUSTOM" -> "Custom"
                                             "ALARM" -> "Alarm"
-                                            "URGENT" -> "Urgent"
-                                            else -> type.name.replace("_", " ")
+                                            else -> type.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
                                         },
                                         style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 11.sp
+                                        fontSize = 9.sp
                                     )
                                 }
                             }
@@ -779,7 +781,7 @@ fun AlertLevelConfiguration(
                         Text(
                             text = "Repeat & Escalation",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
                         Switch(
                             checked = alertConfig.series.enabled,
@@ -886,7 +888,7 @@ fun CustomProfileConfigEditor(
         Text(
             text = "Vibration Settings",
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
@@ -942,9 +944,9 @@ fun CustomProfileConfigEditor(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = pattern.name.replace("_", " "),
+                            text = pattern.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp
+                            fontSize = 9.sp
                         )
                     }
                 }
@@ -979,9 +981,9 @@ fun CustomProfileConfigEditor(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = intensity.name.replace("_", " "),
+                            text = intensity.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodySmall,
-                            fontSize = 11.sp
+                            fontSize = 9.sp
                         )
                     }
                 }
@@ -994,7 +996,7 @@ fun CustomProfileConfigEditor(
         Text(
             text = "Sound Settings",
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
@@ -1029,7 +1031,7 @@ fun CustomProfileConfigEditor(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SoundType.values().filter { it != SoundType.CUSTOM }.forEach { type ->
+                SoundType.values().filter { it != SoundType.CUSTOM && it != SoundType.URGENT }.forEach { type ->
                     Row(
                         modifier = Modifier
                             .selectable(
@@ -1055,10 +1057,10 @@ fun CustomProfileConfigEditor(
                                 "GENTLE" -> "Gentle"
                                 "CUSTOM" -> "Custom"
                                 "ALARM" -> "Alarm"
-                                "URGENT" -> "Urgent"
-                                else -> type.name.replace("_", " ")
+                                else -> type.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
                             },
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 9.sp
                         )
                     }
                 }
@@ -1087,7 +1089,7 @@ fun CustomProfileConfigEditor(
         Text(
             text = "Repeat & Escalation Settings",
             style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         

@@ -35,8 +35,8 @@ fun BasicRepeatPatternSelector(
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(12.dp), // Reduced padding
+            verticalArrangement = Arrangement.spacedBy(8.dp) // Reduced spacing
         ) {
             // Header
             Row(
@@ -55,7 +55,7 @@ fun BasicRepeatPatternSelector(
                     TextButton(
                         onClick = { showCustomDialog = true }
                     ) {
-                        Text("Customize", fontSize = 12.sp)
+                        Text("Custom", fontSize = 10.sp) // Smaller text
                     }
                 }
             }
@@ -110,11 +110,25 @@ private fun QuickRepeatOptions(
             type = RepeatType.NONE
         ),
         RepeatOption(
-            title = "Every 30 Min",
-            description = "Every 30 minutes",
+            title = "15 min",
+            description = "Quick tasks",
+            icon = Icons.Default.Schedule,
+            type = RepeatType.MINUTELY,
+            interval = 15
+        ),
+        RepeatOption(
+            title = "30 min",
+            description = "Regular checks",
             icon = Icons.Default.Schedule,
             type = RepeatType.MINUTELY,
             interval = 30
+        ),
+        RepeatOption(
+            title = "1 hour",
+            description = "Hourly reminder",
+            icon = Icons.Default.AccessTime,
+            type = RepeatType.HOURLY,
+            interval = 1
         ),
         RepeatOption(
             title = "Every Hour",
@@ -153,6 +167,13 @@ private fun QuickRepeatOptions(
             daysOfWeek = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY)
         ),
         RepeatOption(
+            title = "2 weeks",
+            description = "Every 2 weeks",
+            icon = Icons.Default.DateRange,
+            type = RepeatType.WEEKLY,
+            interval = 2
+        ),
+        RepeatOption(
             title = "Weekends",
             description = "Sat-Sun",
             icon = Icons.Default.Weekend,
@@ -162,7 +183,7 @@ private fun QuickRepeatOptions(
         ),
         RepeatOption(
             title = "Custom",
-            description = "Custom pattern",
+            description = "Advanced options",
             icon = Icons.Default.Settings,
             type = RepeatType.CUSTOM
         )
@@ -170,7 +191,7 @@ private fun QuickRepeatOptions(
     
     // Simple grid layout
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp) // Reduced spacing
     ) {
         for (i in quickOptions.indices step 2) {
             val endIndex = minOf(i + 2, quickOptions.size)
@@ -201,37 +222,39 @@ private fun RepeatOptionCard(
     Card(
         modifier = modifier
             .clickable { onClick() }
-            .clip(RoundedCornerShape(12.dp)),
+            .clip(RoundedCornerShape(8.dp)), // Smaller corner radius
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp), // Reduced padding
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = option.icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(18.dp) // Smaller icon
             )
             
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp)) // Reduced spacing
             
             Text(
                 text = option.title,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1 // Prevent text wrapping
             )
             
             Text(
                 text = option.description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                fontSize = 8.sp, // Smaller font
+                maxLines = 1 // Prevent text wrapping
             )
         }
     }

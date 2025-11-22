@@ -44,7 +44,7 @@ import android.util.Log
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.utils.SmartVoiceProcessor
 import com.reminder.app.viewmodel.ReminderViewModel
-import com.reminder.app.ui.components.AlertSettingsSection
+// import com.reminder.app.ui.components.AlertSettingsComponent // Not used, using AlertSettingsScreenFixed instead
 import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.RepeatPattern
 import com.reminder.app.data.RepeatType

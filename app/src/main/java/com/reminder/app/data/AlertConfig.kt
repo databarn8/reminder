@@ -126,7 +126,7 @@ data class AlertConfig(
                 ),
                 sound = SoundConfig(
                     enabled = true,
-                    type = SoundType.URGENT,
+                    type = SoundType.ALARM,
                     volume = 1.0f,
                     seriesCount = 99, // Effectively unlimited
                     seriesInterval = 60000 // Every minute

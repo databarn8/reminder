@@ -27,10 +27,12 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun AlertSettingsSection(
+    reminder: Reminder,
     alertConfig: AlertConfig = AlertConfig(),
     repeatPattern: RepeatPattern = RepeatPattern(),
     onAlertConfigChange: (AlertConfig) -> Unit,
     onRepeatPatternChange: (RepeatPattern) -> Unit,
+    onTriggerPointsChange: (List<TriggerPoint>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -42,7 +44,7 @@ fun AlertSettingsSection(
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(12.dp) // Reduced padding
         ) {
             // Header with expand/collapse functionality
             Row(
@@ -62,7 +64,7 @@ fun AlertSettingsSection(
                 ) {
                     Text(
                         text = if (isExpanded) "Hide" else "Configure",
-                        fontSize = 12.sp
+                        fontSize = 10.sp
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
@@ -87,7 +89,7 @@ fun AlertSettingsSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp) // Reduced spacing
                 ) {
                     // Alert Type Selection
                     AlertTypeSelector(
@@ -99,6 +101,12 @@ fun AlertSettingsSection(
                     BasicRepeatPatternSelector(
                         repeatPattern = repeatPattern,
                         onRepeatPatternChange = onRepeatPatternChange
+                    )
+                    
+                    // Alert Timing Configuration
+                    AlertTimingConfigurationSection(
+                        triggerPoints = reminder.getTriggerPointsList(),
+                        onTriggerPointsChange = onTriggerPointsChange
                     )
                     
                     // Vibration Configuration
@@ -139,7 +147,7 @@ fun AlertTypeSelector(
     Column {
         Text(
             text = "🔔 Alert Type",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -185,7 +193,7 @@ fun RepeatConfigurationSection(
     Column {
         Text(
             text = "🔄 Repeat",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -242,8 +250,8 @@ fun RepeatConfigurationSection(
         }
         
         // Interval configuration (only show if not NONE)
-        if (repeatPattern.type != RepeatType.NONE) {
-            Spacer(modifier = Modifier.height(8.dp))
+    if (repeatPattern.type != RepeatType.NONE) {
+        Spacer(modifier = Modifier.height(6.dp)) // Reduced spacing
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -276,7 +284,7 @@ fun RepeatConfigurationSection(
             }
             
             // End date configuration
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp)) // Reduced spacing
             
             var showEndDatePicker by remember { mutableStateOf(false) }
             OutlinedCard(
@@ -290,7 +298,7 @@ fun RepeatConfigurationSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(12.dp), // Reduced padding
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -320,19 +328,80 @@ fun RepeatConfigurationSection(
                     onDismissRequest = { showEndDatePicker = false },
                     title = { Text("Set End Date") },
                     text = {
-                        Text("End date picker will be implemented in next phase")
+                        Column {
+                            Text("Choose when to end repeating:")
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Quick options
+                            val quickOptions = listOf(
+                                "Never" to null,
+                                "After 3 times" to LocalDate.now().plusDays(3 * when (repeatPattern.type) {
+                                    RepeatType.MINUTELY -> 1
+                                    RepeatType.HOURLY -> 1
+                                    RepeatType.DAILY -> 1
+                                    RepeatType.WEEKLY -> 7
+                                    RepeatType.MONTHLY -> 30
+                                    RepeatType.YEARLY -> 365
+                                    else -> 1
+                                }.toLong()),
+                                "After 5 times" to LocalDate.now().plusDays(5 * when (repeatPattern.type) {
+                                    RepeatType.MINUTELY -> 1
+                                    RepeatType.HOURLY -> 1
+                                    RepeatType.DAILY -> 1
+                                    RepeatType.WEEKLY -> 7
+                                    RepeatType.MONTHLY -> 30
+                                    RepeatType.YEARLY -> 365
+                                    else -> 1
+                                }.toLong()),
+                                "After 10 times" to LocalDate.now().plusDays(10 * when (repeatPattern.type) {
+                                    RepeatType.MINUTELY -> 1
+                                    RepeatType.HOURLY -> 1
+                                    RepeatType.DAILY -> 1
+                                    RepeatType.WEEKLY -> 7
+                                    RepeatType.MONTHLY -> 30
+                                    RepeatType.YEARLY -> 365
+                                    else -> 1
+                                }.toLong()),
+                                "In 1 week" to LocalDate.now().plusWeeks(1),
+                                "In 2 weeks" to LocalDate.now().plusWeeks(2),
+                                "In 1 month" to LocalDate.now().plusMonths(1),
+                                "In 3 months" to LocalDate.now().plusMonths(3),
+                                "In 6 months" to LocalDate.now().plusMonths(6),
+                                "In 1 year" to LocalDate.now().plusYears(1)
+                            )
+                            
+                            quickOptions.forEach { (label, date) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onRepeatPatternChange(repeatPattern.copy(endDate = date))
+                                            showEndDatePicker = false
+                                        }
+                                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = repeatPattern.endDate == date,
+                                        onClick = {
+                                            onRepeatPatternChange(repeatPattern.copy(endDate = date))
+                                            showEndDatePicker = false
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(label)
+                                }
+                            }
+                        }
                     },
                     confirmButton = {
                         TextButton(
-                            onClick = { 
+                            onClick = {
                                 showEndDatePicker = false
-                                // For now, set end date to 30 days from now
-                                onRepeatPatternChange(
-                                    repeatPattern.copy(endDate = LocalDate.now().plusDays(30))
-                                )
                             }
                         ) {
-                            Text("Set 30 Days")
+                            Text("Done")
                         }
                     },
                     dismissButton = {
@@ -354,7 +423,7 @@ fun VibrationConfigurationSection(
     Column {
         Text(
             text = "📳 Vibration",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -387,12 +456,12 @@ fun VibrationConfigurationSection(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             
-            val patterns = listOf(
-                VibrationPattern.SINGLE to "Single",
-                VibrationPattern.DOUBLE to "Double",
-                VibrationPattern.TRIPLE to "Triple",
-                VibrationPattern.LONG to "Long"
-            )
+        val patterns = listOf(
+            VibrationPattern.SINGLE to "1x",
+            VibrationPattern.DOUBLE to "2x",
+            VibrationPattern.TRIPLE to "3x",
+            VibrationPattern.LONG to "Long"
+        )
             
             // Pattern selector - use RadioButtons for cleaner layout
             Column(
@@ -514,7 +583,7 @@ fun SoundConfigurationSection(
     Column {
         Text(
             text = "🔊 Sound",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -550,8 +619,7 @@ fun SoundConfigurationSection(
             val soundTypes = listOf(
                 SoundType.CHIME to "Chime",
                 SoundType.ALARM to "Alarm",
-                SoundType.GENTLE to "Gentle",
-                SoundType.URGENT to "Urgent"
+                SoundType.GENTLE to "Gentle"
             )
             
             // Sound type selector - use RadioButtons for cleaner layout
@@ -671,7 +739,7 @@ fun AlertSeriesSection(
     Column {
         Text(
             text = "🔁 Alert Series",
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -780,5 +848,102 @@ private fun getAlertTypeDescription(type: AlertType): String {
         AlertType.NOTIFICATION_VIBRATION -> "Notification with vibration feedback"
         AlertType.NOTIFICATION_SOUND -> "Notification with custom sound"
         AlertType.FULL_ALERT -> "All alert features enabled"
+    }
+}
+
+@Composable
+fun AlertTimingConfigurationSection(
+    triggerPoints: List<TriggerPoint>,
+    onTriggerPointsChange: (List<TriggerPoint>) -> Unit
+) {
+    Column {
+        Text(
+            text = "⏰ Alert Timing",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        // Quick timing options
+        val quickOptions = listOf(
+            "On time" to TriggerPoint(TriggerType.AT_DUE_TIME),
+            "5 min before" to TriggerPoint(TriggerType.MINUTES_BEFORE, 5),
+            "15 min before" to TriggerPoint(TriggerType.MINUTES_BEFORE, 15),
+            "30 min before" to TriggerPoint(TriggerType.MINUTES_BEFORE, 30),
+            "1 hour before" to TriggerPoint(TriggerType.HOURS_BEFORE, 1),
+            "2 hours before" to TriggerPoint(TriggerType.HOURS_BEFORE, 2),
+            "1 day before" to TriggerPoint(TriggerType.DAYS_BEFORE, 1),
+            "1 week before" to TriggerPoint(TriggerType.WEEKS_BEFORE, 1)
+        )
+        
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            quickOptions.chunked(2).forEach { chunk ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    chunk.forEach { (label, triggerPoint) ->
+                        OutlinedButton(
+                            onClick = {
+                                // Update trigger points with the new selection
+                                onTriggerPointsChange(listOf(triggerPoint))
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 10.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Custom minutes before input
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Custom minutes before:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val currentMinutesBefore = if (triggerPoints.isNotEmpty() &&
+                    triggerPoints.first().type == TriggerType.MINUTES_BEFORE) {
+                    triggerPoints.first().value.toString()
+                } else {
+                    "0"
+                }
+                
+                @OptIn(ExperimentalMaterial3Api::class)
+                OutlinedTextField(
+                    value = currentMinutesBefore,
+                    onValueChange = { value ->
+                        value.toIntOrNull()?.let { minutes ->
+                            val newTriggerPoint = TriggerPoint(TriggerType.MINUTES_BEFORE, minutes)
+                            onTriggerPointsChange(listOf(newTriggerPoint))
+                        }
+                    },
+                    modifier = Modifier.width(100.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    label = { Text("Minutes", fontSize = 10.sp) }
+                )
+                
+                Text(
+                    text = "minutes before due time",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
