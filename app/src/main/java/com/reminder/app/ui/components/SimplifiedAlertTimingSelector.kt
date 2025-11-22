@@ -2,9 +2,6 @@ package com.reminder.app.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,40 +43,50 @@ fun SimplifiedAlertTimingSelector(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
-        // Quick timing options grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+        // Quick timing options grid (using Column with Rows instead of LazyVerticalGrid)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(quickOptions.size) { index ->
-                val (label, triggerPoint) = quickOptions[index]
-                val isSelected = selectedTriggerPoint == triggerPoint
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onTriggerPointChange(triggerPoint) }
-                        .padding(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Split into rows of 2 items each
+            quickOptions.chunked(2).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                        )
+                    rowItems.forEach { (label, triggerPoint) ->
+                        val isSelected = selectedTriggerPoint == triggerPoint
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onTriggerPointChange(triggerPoint) }
+                                .padding(4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                    // Fill remaining space if row has less than 2 items
+                    if (rowItems.size < 2) {
+                        repeat(2 - rowItems.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }

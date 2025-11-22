@@ -2,9 +2,6 @@ package com.reminder.app.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,39 +52,50 @@ fun SimplifiedRepeatPatternSelector(
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
-        // Quick selection grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
+        // Quick selection grid (using Column with Rows instead of LazyVerticalGrid)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(quickPatterns) { pattern ->
-                val isSelected = repeatPattern.type == pattern.type && repeatPattern.interval == pattern.interval
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onRepeatPatternChange(pattern) }
-                        .padding(8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // Split into rows of 3 items each
+            quickPatterns.chunked(3).forEach { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = patternLabels[pattern.type] ?: "Custom",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                        )
+                    rowItems.forEach { pattern ->
+                        val isSelected = repeatPattern.type == pattern.type && repeatPattern.interval == pattern.interval
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onRepeatPatternChange(pattern) }
+                                .padding(4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = patternLabels[pattern.type] ?: "Custom",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                    // Fill remaining space if row has less than 3 items
+                    if (rowItems.size < 3) {
+                        repeat(3 - rowItems.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -111,43 +119,55 @@ fun SimplifiedRepeatPatternSelector(
                 "20 times" to 20
             )
             
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            // End condition options (using Column with Rows instead of LazyVerticalGrid)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                userScrollEnabled = false
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(endOptions) { (label, count) ->
-                    val isSelected = repeatPattern.endDate != null && 
-                        java.time.LocalDate.now().plusDays(count.toLong()).isEqual(repeatPattern.endDate)
-                    
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { 
-                                val newEndDate = java.time.LocalDate.now().plusDays(count.toLong())
-                                onRepeatPatternChange(repeatPattern.copy(endDate = newEndDate))
-                            }
-                            .padding(8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
-                            contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                // Split into rows of 2 items each
+                endOptions.chunked(2).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
+                        rowItems.forEach { (label, count) ->
+                            val isSelected = repeatPattern.endDate != null &&
+                                java.time.LocalDate.now().plusDays(count.toLong()).isEqual(repeatPattern.endDate)
+                            
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        val newEndDate = java.time.LocalDate.now().plusDays(count.toLong())
+                                        onRepeatPatternChange(repeatPattern.copy(endDate = newEndDate))
+                                    }
+                                    .padding(4.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                        // Fill remaining space if row has less than 2 items
+                        if (rowItems.size < 2) {
+                            repeat(2 - rowItems.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
