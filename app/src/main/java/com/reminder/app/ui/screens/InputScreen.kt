@@ -49,6 +49,10 @@ import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.RepeatPattern
 import com.reminder.app.data.RepeatType
 import com.reminder.app.data.AlertLevelOption
+import com.reminder.app.data.TriggerPoint
+import com.reminder.app.data.TriggerType
+import com.reminder.app.ui.components.SimplifiedAlertTimingSelector
+import com.reminder.app.ui.components.SimplifiedRepeatPatternSelector
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -1019,6 +1023,9 @@ fun InputScreen(
     var alertLevel by remember { mutableStateOf(com.reminder.app.data.AlertLevel.LOW) }
     var selectedCustomProfileName by remember { mutableStateOf<String?>(null) }
     
+    // State for simplified components
+    var selectedTriggerPoint by remember { mutableStateOf<TriggerPoint?>(TriggerPoint(TriggerType.AT_DUE_TIME)) }
+    
     // Enhanced date/time state
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var selectedTime by remember { mutableStateOf(LocalTime.NOON) }
@@ -1060,6 +1067,10 @@ fun InputScreen(
                         repeatPattern = reminder.getRepeatPatternData()
                         alertLevel = reminder.getAlertLevelEnum()
                         selectedCustomProfileName = reminder.getCustomProfileNameFromField()
+                        
+                        // Initialize selectedTriggerPoint from reminder's trigger points
+                        val triggerPoints = reminder.getTriggerPointsList()
+                        selectedTriggerPoint = triggerPoints.firstOrNull()
                         android.util.Log.d("InputScreen", "Loaded whenDay='$whenDay', whenTime='$whenTime' from database")
                         android.util.Log.d("InputScreen", "Loaded alertConfig=${alertConfig.alertType}, repeatPattern=${repeatPattern.type}")
                         
@@ -1309,6 +1320,8 @@ fun InputScreen(
                                     whenTime = selectedTime.format(DateTimeFormatter.ofPattern("h:mm a"))
                                 }
                                 
+                                // Store the selected trigger point in the reminder (will be used in notification scheduling)
+                                
                                 // Use new alert configuration and repeat pattern
                                 val alertConfigJson = kotlinx.serialization.json.Json.encodeToString(
                                     com.reminder.app.data.AlertConfig.serializer(),
@@ -1319,6 +1332,19 @@ fun InputScreen(
                                     repeatPattern
                                 )
                                 
+                                // Store the selected trigger point as JSON using custom serialization
+                                val triggerPoint = selectedTriggerPoint ?: TriggerPoint(TriggerType.AT_DUE_TIME)
+                                val triggerPointsJson = org.json.JSONArray().apply {
+                                    put(org.json.JSONObject().apply {
+                                        put("type", triggerPoint.type.name)
+                                        put("value", triggerPoint.value)
+                                        put("customOffsetMs", triggerPoint.customOffsetMs)
+                                        put("enableFlash", triggerPoint.enableFlash)
+                                        put("enableSound", triggerPoint.enableSound)
+                                        put("enableVibration", triggerPoint.enableVibration)
+                                    })
+                                }.toString()
+                                
                                 val reminder = com.reminder.app.data.Reminder(
                                     content = content,
                                     category = extractCategory(content),
@@ -1328,7 +1354,7 @@ fun InputScreen(
                                     whenTime = whenTime.ifBlank { null },
                                     voiceInput = content,
                                     isProcessed = true,
-                                    triggerPoints = null, // Deprecated, using alertConfig instead
+                                    triggerPoints = triggerPointsJson, // Store the selected trigger point
                                     alertConfig = alertConfigJson,
                                     repeatPattern = repeatPatternJson,
                                     alertLevel = if (alertLevel == com.reminder.app.data.AlertLevel.CUSTOM) {
@@ -1685,6 +1711,37 @@ fun InputScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
+                    
+                    // Simplified Alert Timing Selector
+                    SimplifiedAlertTimingSelector(
+                        selectedTriggerPoint = selectedTriggerPoint,
+                        onTriggerPointChange = { triggerPoint ->
+                            selectedTriggerPoint = triggerPoint
+                            // Update alertConfig to reflect the new trigger point
+                            alertConfig = alertConfig.copy(
+                                alertType = when (triggerPoint.type) {
+                                    TriggerType.AT_DUE_TIME -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.MINUTES_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.HOURS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.DAYS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.WEEKS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.CUSTOM_OFFSET -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                }
+                            )
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Simplified Repeat Pattern Selector
+                    SimplifiedRepeatPatternSelector(
+                        repeatPattern = repeatPattern,
+                        onRepeatPatternChange = { pattern ->
+                            repeatPattern = pattern
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
                     
                     // Alert Level Selector
                     Card(
