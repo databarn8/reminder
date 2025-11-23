@@ -1233,27 +1233,13 @@ fun InputScreen(
                     val extractedDay = extractDay(content)
                     val extractedTime = extractTimeOnly(content)
                     
-                    // Always auto-fill day and time fields when content changes
+                    // Only auto-fill day and time fields when content changes, but don't update date field
+                    // The date field should remain as set by the user
                     whenDay = extractedDay
                     whenTime = extractedTime
                     
-                    // Auto-update selectedDate when day info is detected
-                    if (extractedDay.isNotBlank()) {
-                        val today = LocalDate.now()
-                        selectedDate = when (extractedDay.lowercase()) {
-                            "today" -> today
-                            "tomorrow" -> today.plusDays(1)
-                            "monday" -> getNextWeekday(today, java.time.DayOfWeek.MONDAY)
-                            "tuesday" -> getNextWeekday(today, java.time.DayOfWeek.TUESDAY)
-                            "wednesday" -> getNextWeekday(today, java.time.DayOfWeek.WEDNESDAY)
-                            "thursday" -> getNextWeekday(today, java.time.DayOfWeek.THURSDAY)
-                            "friday" -> getNextWeekday(today, java.time.DayOfWeek.FRIDAY)
-                            "saturday" -> getNextWeekday(today, java.time.DayOfWeek.SATURDAY)
-                            "sunday" -> getNextWeekday(today, java.time.DayOfWeek.SUNDAY)
-                            "next week" -> today.plusDays(7)
-                            else -> today
-                        }
-                    }
+                    // Don't auto-update selectedDate when day info is detected
+                    // This preserves the date set by the user in the date picker
                     
                     Log.d("InputScreen", "Processed: category='$processedCategory', time='$processedTime', priority='$processedPriority', day='$extractedDay', timeOnly='$extractedTime'")
                 } catch (e: Exception) {
