@@ -5,15 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.reminder.app.repository.ReminderRepository
+import com.reminder.app.viewmodel.ReminderViewModel
 
 class ReminderViewModelFactory(
     private val repository: ReminderRepository,
     private val application: Application
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(com.reminder.app.viewmodel.ReminderViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(ReminderViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return com.reminder.app.viewmodel.ReminderViewModel(repository, application) as T
+            return ReminderViewModel(repository, application) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

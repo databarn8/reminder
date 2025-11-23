@@ -25,7 +25,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.reminder.app.data.Reminder
 import com.reminder.app.data.AlertLevel
 import com.reminder.app.data.AlertLevelOption
+import com.reminder.app.data.AlertLevelConfig
 import com.reminder.app.utils.EnhancedEmailService
+import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.viewmodel.ReminderViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,7 +47,7 @@ fun performSafeFreshFlash(context: Context) {
         android.util.Log.d("FreshButton", "Starting simple flash implementation")
         
         // Use ScreenFlashManager with simplified approach
-        com.reminder.app.utils.ScreenFlashManager.triggerFlash(
+        ScreenFlashManager.triggerFlash(
             context = context,
             flashColor = androidx.compose.ui.graphics.Color.Yellow,
             flashDurationMs = 300, // Short flash duration
@@ -59,7 +61,7 @@ fun performSafeFreshFlash(context: Context) {
         android.util.Log.e("FreshButton", "Simple flash failed: ${e.message}")
         // Fallback to vibration only if flash fails
         try {
-            com.reminder.app.utils.ScreenFlashManager.triggerVibration(context)
+            ScreenFlashManager.triggerVibration(context)
         } catch (e2: Exception) {
             android.util.Log.e("FreshButton", "Fallback vibration also failed: ${e2.message}")
         }
@@ -508,17 +510,17 @@ fun ReminderCard(
 }
 
 // Helper function to load alert level config for custom profiles
-private fun loadAlertLevelConfig(context: android.content.Context): com.reminder.app.data.AlertLevelConfig {
+private fun loadAlertLevelConfig(context: android.content.Context): AlertLevelConfig {
     return try {
         val prefs = context.getSharedPreferences("alert_level_config", android.content.Context.MODE_PRIVATE)
         val json = prefs.getString("alert_level_config", null)
         if (json != null) {
-            com.reminder.app.data.AlertLevelConfig.Companion.fromJson(json)
+            AlertLevelConfig.Companion.fromJson(json)
         } else {
-            com.reminder.app.data.AlertLevelConfig() // Default
+            AlertLevelConfig() // Default
         }
     } catch (e: Exception) {
         android.util.Log.e("ReminderListScreen", "Error loading alert level config: ${e.message}")
-        com.reminder.app.data.AlertLevelConfig() // Default if parsing fails
+        AlertLevelConfig() // Default if parsing fails
     }
 }

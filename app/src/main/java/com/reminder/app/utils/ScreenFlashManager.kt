@@ -166,7 +166,7 @@ object ScreenFlashManager {
         }
     }
     
-    fun triggerSound(context: Context, soundType: Int = 0) {
+    fun triggerSound(context: Context, soundType: Int = 3) {
         try {
             // Check if sound is enabled in system settings
             if (!isSoundEnabled(context)) {

@@ -50,6 +50,10 @@ import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.RepeatPattern
 import com.reminder.app.data.RepeatType
 import com.reminder.app.data.AlertLevelOption
+import com.reminder.app.data.AlertLevel
+import com.reminder.app.data.AlertLevelConfig
+import com.reminder.app.data.AlertType
+import com.reminder.app.data.Reminder
 import com.reminder.app.data.TriggerPoint
 import com.reminder.app.data.TriggerType
 import com.reminder.app.ui.components.SimplifiedAlertTimingSelector
@@ -294,18 +298,18 @@ fun updateContentDay(content: String, newDay: String): String {
 }
 
 // Helper function to load alert level config for custom profiles (avoiding naming conflicts)
-fun loadInputScreenAlertLevelConfig(context: android.content.Context): com.reminder.app.data.AlertLevelConfig {
+fun loadInputScreenAlertLevelConfig(context: android.content.Context): AlertLevelConfig {
     return try {
         val prefs = context.getSharedPreferences("alert_level_config", android.content.Context.MODE_PRIVATE)
         val json = prefs.getString("alert_level_config", null)
         if (json != null) {
-            com.reminder.app.data.AlertLevelConfig.Companion.fromJson(json)
+            AlertLevelConfig.Companion.fromJson(json)
         } else {
-            com.reminder.app.data.AlertLevelConfig() // Default
+            AlertLevelConfig() // Default
         }
     } catch (e: Exception) {
         android.util.Log.e("InputScreen", "Error loading alert level config: ${e.message}")
-        com.reminder.app.data.AlertLevelConfig() // Default if parsing fails
+        AlertLevelConfig() // Default if parsing fails
     }
 }
 
@@ -740,6 +744,12 @@ fun TimePickerDialog(
         
         // Add common times
         val commonTimes = listOf(
+            "1:00 AM" to Pair(1f, 0f),
+            "2:00 AM" to Pair(2f, 0f),
+            "3:00 AM" to Pair(3f, 0f),
+            "4:00 AM" to Pair(4f, 0f),
+            "5:00 AM" to Pair(5f, 0f),
+            "6:00 AM" to Pair(6f, 0f),
             "7:00 AM" to Pair(7f, 0f),
             "8:00 AM" to Pair(8f, 0f),
             "9:00 AM" to Pair(9f, 0f),
@@ -754,7 +764,10 @@ fun TimePickerDialog(
             "6:00 PM" to Pair(18f, 0f),
             "7:00 PM" to Pair(19f, 0f),
             "8:00 PM" to Pair(20f, 0f),
-            "9:00 PM" to Pair(21f, 0f)
+            "9:00 PM" to Pair(21f, 0f),
+            "10:00 PM" to Pair(22f, 0f),
+            "11:00 PM" to Pair(23f, 0f),
+            "12:00 AM" to Pair(0f, 0f)
         )
         
         // Add common times that aren't already in smart defaults
@@ -1046,7 +1059,7 @@ fun InputScreen(
     // Single content field - supports both typing and voice
     var content by remember { mutableStateOf("") }
     var isProcessing by remember { mutableStateOf(false) }
-    var loadedReminder by remember { mutableStateOf<com.reminder.app.data.Reminder?>(null) }
+    var loadedReminder by remember { mutableStateOf<Reminder?>(null) }
     
     // Prompt enhancement state
     var showPromptEnhancements by remember { mutableStateOf(false) }
@@ -1059,7 +1072,7 @@ fun InputScreen(
     // Enhanced alert configuration state
     var alertConfig by remember { mutableStateOf(AlertConfig()) }
     var repeatPattern by remember { mutableStateOf(RepeatPattern()) }
-    var alertLevel by remember { mutableStateOf(com.reminder.app.data.AlertLevel.LOW) }
+    var alertLevel by remember { mutableStateOf(AlertLevel.LOW) }
     var selectedCustomProfileName by remember { mutableStateOf<String?>(null) }
     
     // State for simplified components
@@ -1076,9 +1089,11 @@ fun InputScreen(
     
     // Common time suggestions
     val timeSuggestions = listOf(
-        "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+        "12:00 AM", "1:00 AM", "2:00 AM", "3:00 AM", "4:00 AM", "5:00 AM",
+        "6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM",
+        "10:00 AM", "11:00 AM", "12:00 PM",
         "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM",
-        "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM",
+        "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM", "9:00 PM", "10:00 PM", "11:00 PM",
         "Morning", "Afternoon", "Evening", "Night"
     )
     val priorityOptions = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
@@ -1367,11 +1382,11 @@ fun InputScreen(
                                 
                                 // Use new alert configuration and repeat pattern
                                 val alertConfigJson = kotlinx.serialization.json.Json.encodeToString(
-                                    com.reminder.app.data.AlertConfig.serializer(),
+                                    AlertConfig.serializer(),
                                     alertConfig
                                 )
                                 val repeatPatternJson = kotlinx.serialization.json.Json.encodeToString(
-                                    com.reminder.app.data.RepeatPattern.serializer(),
+                                    RepeatPattern.serializer(),
                                     repeatPattern
                                 )
                                 
@@ -1388,7 +1403,7 @@ fun InputScreen(
                                     })
                                 }.toString()
                                 
-                                val reminder = com.reminder.app.data.Reminder(
+                                val reminder = Reminder(
                                     content = content,
                                     category = extractCategory(content),
                                     importance = selectedPriority,
@@ -1400,7 +1415,7 @@ fun InputScreen(
                                     triggerPoints = triggerPointsJson, // Store the selected trigger point
                                     alertConfig = alertConfigJson,
                                     repeatPattern = repeatPatternJson,
-                                    alertLevel = if (alertLevel == com.reminder.app.data.AlertLevel.CUSTOM) {
+                                    alertLevel = if (alertLevel == AlertLevel.CUSTOM) {
                                         selectedCustomProfileName ?: "CUSTOM"
                                     } else {
                                         alertLevel.name
@@ -1852,12 +1867,12 @@ fun InputScreen(
                             // Update alertConfig to reflect the new trigger point
                             alertConfig = alertConfig.copy(
                                 alertType = when (triggerPoint.type) {
-                                    TriggerType.AT_DUE_TIME -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
-                                    TriggerType.MINUTES_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
-                                    TriggerType.HOURS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
-                                    TriggerType.DAYS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
-                                    TriggerType.WEEKS_BEFORE -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
-                                    TriggerType.CUSTOM_OFFSET -> com.reminder.app.data.AlertType.NOTIFICATION_ONLY
+                                    TriggerType.AT_DUE_TIME -> AlertType.NOTIFICATION_ONLY
+                                    TriggerType.MINUTES_BEFORE -> AlertType.NOTIFICATION_ONLY
+                                    TriggerType.HOURS_BEFORE -> AlertType.NOTIFICATION_ONLY
+                                    TriggerType.DAYS_BEFORE -> AlertType.NOTIFICATION_ONLY
+                                    TriggerType.WEEKS_BEFORE -> AlertType.NOTIFICATION_ONLY
+                                    TriggerType.CUSTOM_OFFSET -> AlertType.NOTIFICATION_ONLY
                                 }
                             )
                         }
@@ -1908,32 +1923,32 @@ fun InputScreen(
                                     ) {
                                         Text(
                                             text = when (alertLevel) {
-                                                com.reminder.app.data.AlertLevel.LOW -> "Low"
-                                                com.reminder.app.data.AlertLevel.MEDIUM -> "Medium"
-                                                com.reminder.app.data.AlertLevel.HIGH -> "High"
-                                                com.reminder.app.data.AlertLevel.URGENT -> "Urgent"
-                                                com.reminder.app.data.AlertLevel.CUSTOM -> {
+                                                AlertLevel.LOW -> "Low"
+                                                AlertLevel.MEDIUM -> "Medium"
+                                                AlertLevel.HIGH -> "High"
+                                                AlertLevel.URGENT -> "Urgent"
+                                                AlertLevel.CUSTOM -> {
                                                     // Use the selected custom profile name
                                                     selectedCustomProfileName ?: loadedReminder?.getCustomProfileNameFromField() ?: "Custom"
                                                 }
                                             },
                                             color = when (alertLevel) {
-                                                com.reminder.app.data.AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                com.reminder.app.data.AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                com.reminder.app.data.AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                com.reminder.app.data.AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                com.reminder.app.data.AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                                AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                                AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                                AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                                AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                             }
                                         )
                                         Icon(
                                             Icons.Default.ExpandMore,
                                             contentDescription = "Select Alert Level",
                                             tint = when (alertLevel) {
-                                                com.reminder.app.data.AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                com.reminder.app.data.AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                com.reminder.app.data.AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                com.reminder.app.data.AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                com.reminder.app.data.AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                                AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                                AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                                AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                                AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                             }
                                         )
                                     }
@@ -1954,11 +1969,11 @@ fun InputScreen(
                                                 Text(
                                                     text = option.displayName,
                                                     color = when (option.level) {
-                                                        com.reminder.app.data.AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                        com.reminder.app.data.AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                        com.reminder.app.data.AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                        com.reminder.app.data.AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                        com.reminder.app.data.AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                                        AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                                        AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                                        AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                                        AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                                        AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                                     }
                                                 )
                                             },
@@ -1981,7 +1996,7 @@ fun InputScreen(
                                             },
                                             onClick = {
                                                 // For custom profiles, we need to store the actual profile name
-                                                alertLevel = com.reminder.app.data.AlertLevel.CUSTOM
+                                                alertLevel = AlertLevel.CUSTOM
                                                 // Store the custom profile name in a separate variable for later use
                                                 selectedCustomProfileName = option.customProfileName ?: option.displayName
                                                 android.util.Log.d("InputScreen", "Selected custom profile: ${selectedCustomProfileName}")
@@ -2192,10 +2207,8 @@ fun InputScreen(
             selectedTime = selectedTime,
             onTimeSelected = { time ->
                 selectedTime = time
-                // Only update whenTime if it's currently blank (preserve user input)
-                if (whenTime.isBlank()) {
-                    whenTime = time.format(DateTimeFormatter.ofPattern("h:mm a"))
-                }
+                // Always update whenTime to reflect the selected time
+                whenTime = time.format(DateTimeFormatter.ofPattern("h:mm a"))
             },
             onDismiss = { showTimePicker = false }
         )

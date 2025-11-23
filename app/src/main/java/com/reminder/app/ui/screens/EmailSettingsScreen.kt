@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.reminder.app.ui.components.EmailClientSelector
 import com.reminder.app.ui.components.EmailClientInfo
+import com.reminder.app.data.Reminder
 import com.reminder.app.utils.EnhancedEmailService
 
 /**
@@ -168,7 +169,7 @@ fun EmailSettingsScreen(
                     Button(
                         onClick = {
                             // Create a test reminder and send it
-                            val testReminder = com.reminder.app.data.Reminder(
+                            val testReminder = Reminder(
                                 id = 0,
                                 content = "This is a test reminder from your Reminder App",
                                 category = "Test",

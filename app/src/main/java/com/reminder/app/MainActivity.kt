@@ -18,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.reminder.app.data.ReminderDatabase
+import com.reminder.app.data.Reminder
 import com.reminder.app.repository.ReminderRepository
 import com.reminder.app.ui.screens.CalendarScreen
 import com.reminder.app.ui.screens.ConfirmationScreen
@@ -229,7 +230,7 @@ class MainActivity : ComponentActivity() {
                                 speechManager = speechManager,
                                 onConfirm = { confirmedText ->
                                     // Save reminder to database
-                                    val reminder = com.reminder.app.data.Reminder(
+                                    val reminder = Reminder(
                                         content = confirmedText,
                                         category = "Personal",
                                         importance = 5,
@@ -306,7 +307,7 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun createReminderFromVoice(text: String) {
-        val reminder = com.reminder.app.data.Reminder(
+        val reminder = Reminder(
             content = text,
             category = "Personal",
             importance = 5,

@@ -16,6 +16,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.activity.result.ActivityResultLauncher
 import com.reminder.app.data.EmailClientPreference
 import com.reminder.app.data.EmailPreferencesManager
+import com.reminder.app.data.Reminder
 import com.reminder.app.utils.EnhancedEmailService
 
 /**
@@ -40,7 +41,7 @@ fun EmailClientSelector(
     // Create a simple function to test email clients
     fun testEmailClient(packageName: String) {
         try {
-            val testReminder = com.reminder.app.data.Reminder(
+            val testReminder = Reminder(
                 id = 0,
                 content = "Test email from selected client",
                 category = "Test",

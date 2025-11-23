@@ -13,6 +13,7 @@ import com.reminder.app.R
 import com.reminder.app.MainActivity
 import com.reminder.app.data.Reminder
 import com.reminder.app.utils.EnhancedEmailService
+import com.reminder.app.ui.screens.AlarmActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -284,7 +285,7 @@ class NotificationScheduler : BroadcastReceiver() {
                 .setShowWhen(true) // Display timestamp
                 .setLights(android.graphics.Color.RED, 1000, 1000) // Blink lights
                 .setVibrate(longArrayOf(0, 500, 200, 500)) // Vibration pattern
-                .setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)) // Sound
+                .setSound(android.net.Uri.parse("android.resource://${context.packageName}/raw/notification_chime")) // Custom chime sound
                 .setFullScreenIntent(pendingIntent, true) // Try to show as heads-up
                 .setPriority(NotificationCompat.PRIORITY_MAX) // Maximum priority
                 .setCategory(NotificationCompat.CATEGORY_ALARM) // Use alarm category for higher priority
@@ -316,7 +317,7 @@ class NotificationScheduler : BroadcastReceiver() {
 
         private fun launchAlarmActivity(context: Context, title: String, content: String, reminderId: Int, reminder: Reminder? = null) {
             try {
-                val intent = android.content.Intent(context, com.reminder.app.ui.screens.AlarmActivity::class.java).apply {
+                val intent = android.content.Intent(context, AlarmActivity::class.java).apply {
                     putExtra("alarm_title", title)
                     putExtra("alarm_content", content)
                     putExtra("reminder_id", reminderId)

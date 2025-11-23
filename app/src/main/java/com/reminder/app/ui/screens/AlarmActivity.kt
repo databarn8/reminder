@@ -31,6 +31,10 @@ import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.data.AlertLevel
 import com.reminder.app.data.AlertLevelConfig
 import com.reminder.app.data.AlertLevelOption
+import com.reminder.app.data.AlertConfig
+import com.reminder.app.data.VibrationConfig
+import com.reminder.app.data.VibrationPattern
+import com.reminder.app.data.SoundConfig
 import com.reminder.app.utils.ScreenFlashManager
 import kotlinx.coroutines.delay
 
@@ -92,7 +96,7 @@ class AlarmActivity : ComponentActivity() {
         startRepeatingAlarm(alertConfig)
     }
     
-    private fun startRepeatingAlarm(alertConfig: com.reminder.app.data.AlertConfig) {
+    private fun startRepeatingAlarm(alertConfig: AlertConfig) {
         if (isAlarmDismissed) return
         
         // Apply alert configuration
@@ -118,16 +122,16 @@ class AlarmActivity : ComponentActivity() {
         }
     }
     
-    private fun triggerVibration(vibrationConfig: com.reminder.app.data.VibrationConfig) {
+    private fun triggerVibration(vibrationConfig: VibrationConfig) {
         try {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 val effect = when (vibrationConfig.pattern) {
-                    com.reminder.app.data.VibrationPattern.SINGLE -> android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
-                    com.reminder.app.data.VibrationPattern.DOUBLE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
-                    com.reminder.app.data.VibrationPattern.TRIPLE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
-                    com.reminder.app.data.VibrationPattern.LONG -> android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
-                    com.reminder.app.data.VibrationPattern.PULSE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200, 100, 200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
+                    VibrationPattern.SINGLE -> android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+                    VibrationPattern.DOUBLE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
+                    VibrationPattern.TRIPLE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
+                    VibrationPattern.LONG -> android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+                    VibrationPattern.PULSE -> android.os.VibrationEffect.createWaveform(longArrayOf(200, 100, 200, 100, 200, 100, 200), intArrayOf(android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE, 0, android.os.VibrationEffect.DEFAULT_AMPLITUDE), -1)
                     else -> android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
                 }
                 vibrator.vibrate(effect)
@@ -153,7 +157,7 @@ class AlarmActivity : ComponentActivity() {
         }
     }
     
-    private fun playAlarmSound(soundConfig: com.reminder.app.data.SoundConfig) {
+    private fun playAlarmSound(soundConfig: SoundConfig) {
         try {
             // Stop any existing sound
             mediaPlayer?.stop()
@@ -234,7 +238,7 @@ fun AlarmScreen(
     title: String,
     content: String,
     alertLevel: AlertLevel,
-    alertConfig: com.reminder.app.data.AlertConfig,
+    alertConfig: AlertConfig,
     onDismiss: () -> Unit,
     alarmCount: Int,
     maxAlarms: Int,
@@ -382,7 +386,7 @@ private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
     }
 }
 
-private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, customProfileName: String? = null): com.reminder.app.data.AlertConfig {
+private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, customProfileName: String? = null): AlertConfig {
     return when (level) {
         AlertLevel.LOW -> levelConfig.lowLevel
         AlertLevel.MEDIUM -> levelConfig.mediumLevel
@@ -391,9 +395,9 @@ private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLe
         AlertLevel.CUSTOM -> {
             // Use the specific custom profile name if provided, otherwise fall back to first available
             if (!customProfileName.isNullOrBlank()) {
-                levelConfig.customProfiles[customProfileName] ?: com.reminder.app.data.AlertConfig.Companion.getMediumLevelDefaults()
+                levelConfig.customProfiles[customProfileName] ?: AlertConfig.Companion.getMediumLevelDefaults()
             } else {
-                levelConfig.customProfiles.values.firstOrNull() ?: com.reminder.app.data.AlertConfig.Companion.getMediumLevelDefaults()
+                levelConfig.customProfiles.values.firstOrNull() ?: AlertConfig.Companion.getMediumLevelDefaults()
             }
         }
     }
