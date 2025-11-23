@@ -260,6 +260,39 @@ fun getIntervalUnit(type: RepeatType): String {
     }
 }
 
+// Helper function to update day references in content text
+fun updateContentDay(content: String, newDay: String): String {
+    if (content.isBlank()) return content
+    
+    Log.d("InputScreen", "updateContentDay called with content='$content', newDay='$newDay'")
+    
+    // Regex patterns to match various day references
+    val dayPatterns = listOf(
+        Regex("\\btoday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\btomorrow\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bmonday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\btuesday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bwednesday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bthursday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bfriday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bsaturday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bsunday\\b", RegexOption.IGNORE_CASE),
+        Regex("\\bnext week\\b", RegexOption.IGNORE_CASE)
+    )
+    
+    var updatedContent = content
+    
+    // Replace all day references with the new day
+    dayPatterns.forEach { pattern ->
+        val oldContent = updatedContent
+        updatedContent = pattern.replace(updatedContent, newDay)
+        Log.d("InputScreen", "Pattern ${pattern.pattern} replaced: old='$oldContent' -> new='$updatedContent'")
+    }
+    
+    Log.d("InputScreen", "Final updated content: '$updatedContent'")
+    return updatedContent
+}
+
 // Helper function to load alert level config for custom profiles (avoiding naming conflicts)
 fun loadInputScreenAlertLevelConfig(context: android.content.Context): com.reminder.app.data.AlertLevelConfig {
     return try {
@@ -1233,15 +1266,20 @@ fun InputScreen(
                     val extractedDay = extractDay(content)
                     val extractedTime = extractTimeOnly(content)
                     
-                    // Only auto-fill day and time fields when content changes, but don't update date field
-                    // The date field should remain as set by the user
-                    whenDay = extractedDay
-                    whenTime = extractedTime
+                    // Only auto-fill day and time fields when they are currently blank
+                    // This preserves user input in these fields
+                    if (whenDay.isBlank()) {
+                        whenDay = extractedDay
+                    }
+                    if (whenTime.isBlank()) {
+                        whenTime = extractedTime
+                    }
                     
                     // Don't auto-update selectedDate when day info is detected
                     // This preserves the date set by the user in the date picker
                     
                     Log.d("InputScreen", "Processed: category='$processedCategory', time='$processedTime', priority='$processedPriority', day='$extractedDay', timeOnly='$extractedTime'")
+                    Log.d("InputScreen", "Preserved user input: whenDay='$whenDay', whenTime='$whenTime'")
                 } catch (e: Exception) {
                     Log.e("InputScreen", "Error processing content: ${e.message}")
                 } finally {
@@ -2126,12 +2164,20 @@ fun InputScreen(
             selectedDate = selectedDate,
             onDateSelected = { date ->
                 selectedDate = date
-                // Only update whenDay if it's currently blank (preserve user input)
-                if (whenDay.isBlank()) {
-                    whenDay = when {
-                        date == LocalDate.now() -> "Today"
-                        date == LocalDate.now().plusDays(1) -> "Tomorrow"
-                        else -> date.format(DateTimeFormatter.ofPattern("EEEE"))
+                // Always update whenDay when date is changed to reflect the new selection
+                val newDay = when {
+                    date == LocalDate.now() -> "Today"
+                    date == LocalDate.now().plusDays(1) -> "Tomorrow"
+                    else -> date.format(DateTimeFormatter.ofPattern("EEEE"))
+                }
+                whenDay = newDay
+                
+                // Update content field to replace day references
+                if (content.isNotBlank()) {
+                    val updatedContent = updateContentDay(content, newDay)
+                    if (updatedContent != content) {
+                        content = updatedContent
+                        Log.d("InputScreen", "Updated content field from '$content' to '$updatedContent'")
                     }
                 }
                 
