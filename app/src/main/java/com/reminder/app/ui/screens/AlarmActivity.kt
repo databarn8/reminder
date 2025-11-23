@@ -36,6 +36,8 @@ import com.reminder.app.data.VibrationConfig
 import com.reminder.app.data.VibrationPattern
 import com.reminder.app.data.SoundConfig
 import com.reminder.app.utils.ScreenFlashManager
+import com.reminder.app.data.Reminder
+import com.reminder.app.utils.NotificationScheduler
 import kotlinx.coroutines.delay
 
 class AlarmActivity : ComponentActivity() {
@@ -94,6 +96,38 @@ class AlarmActivity : ComponentActivity() {
         
         // Start repeating alarm
         startRepeatingAlarm(alertConfig)
+        
+        // Check if this is a repeat occurrence and schedule next one if needed
+        val triggerType = intent.getStringExtra("trigger_type") ?: "AT_DUE_TIME"
+        if (triggerType == "REPEAT_OCCURRENCE") {
+            val reminderId = intent.getIntExtra("reminder_id", -1)
+            val reminderJson = intent.getStringExtra("reminder_json")
+            
+            if (reminderJson != null) {
+                try {
+                    // Parse reminder from JSON manually since parseReminderFromJson is private
+                    val jsonObject = org.json.JSONObject(reminderJson)
+                    val reminder = Reminder(
+                        id = jsonObject.getInt("id"),
+                        content = jsonObject.getString("content"),
+                        category = jsonObject.getString("category"),
+                        importance = jsonObject.getInt("importance"),
+                        reminderTime = jsonObject.getLong("reminderTime"),
+                        whenDay = jsonObject.getString("whenDay").takeIf { it.isNotEmpty() },
+                        whenTime = jsonObject.getString("whenTime").takeIf { it.isNotEmpty() },
+                        repeatType = jsonObject.getString("repeatType"),
+                        repeatInterval = jsonObject.getInt("repeatInterval"),
+                        createdAt = jsonObject.getLong("createdAt")
+                    )
+                    // Schedule next occurrence after a delay
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        scheduleNextRepeatOccurrence(this, reminder)
+                    }, 5000) // 5 second delay
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmActivity", "Error scheduling next repeat: ${e.message}")
+                }
+            }
+        }
     }
     
     private fun startRepeatingAlarm(alertConfig: AlertConfig) {
@@ -225,6 +259,91 @@ class AlarmActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         dismissAlarm()
+    }
+    
+    private fun scheduleNextRepeatOccurrence(context: Context, reminder: Reminder) {
+        try {
+            // Get next occurrence after current reminder time
+            val nextOccurrence = reminder.getNextOccurrence(
+                java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(reminder.reminderTime),
+                    java.time.ZoneId.systemDefault()
+                )
+            )
+            
+            nextOccurrence?.let { next ->
+                val nextTime = next.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val currentTime = System.currentTimeMillis()
+                
+                if (nextTime > currentTime) {
+                    android.util.Log.d("AlarmActivity", "Scheduling next repeat occurrence at: ${java.util.Date(nextTime)}")
+                    
+                    // Schedule the next occurrence
+                    // Create reminder JSON manually since reminderToJson is private
+                    val reminderJson = org.json.JSONObject().apply {
+                        put("id", reminder.id)
+                        put("content", reminder.content)
+                        put("category", reminder.category)
+                        put("importance", reminder.importance)
+                        put("reminderTime", reminder.reminderTime)
+                        put("whenDay", reminder.whenDay ?: "")
+                        put("whenTime", reminder.whenTime ?: "")
+                        put("repeatType", reminder.repeatType)
+                        put("repeatInterval", reminder.repeatInterval)
+                        put("createdAt", reminder.createdAt)
+                    }.toString()
+                    
+                    val intent = android.content.Intent(context, NotificationScheduler::class.java).apply {
+                        putExtra("reminder_title", reminder.content)
+                        putExtra("reminder_content", reminder.content)
+                        putExtra("reminder_id", reminder.id)
+                        putExtra("reminder_json", reminderJson)
+                        putExtra("trigger_type", "REPEAT_OCCURRENCE")
+                        putExtra("enable_flash", true)
+                        putExtra("enable_sound", true)
+                        putExtra("enable_vibration", true)
+                    }
+                    
+                    val pendingIntent = android.app.PendingIntent.getBroadcast(
+                        context,
+                        "${reminder.id}_next_repeat".hashCode(),
+                        intent,
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                    )
+                    
+                    val alarmManager = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        if (!alarmManager.canScheduleExactAlarms()) {
+                            alarmManager.setAndAllowWhileIdle(
+                                android.app.AlarmManager.RTC_WAKEUP,
+                                nextTime,
+                                pendingIntent
+                            )
+                            android.util.Log.d("AlarmActivity", "Next repeat scheduled with setAndAllowWhileIdle")
+                        } else {
+                            alarmManager.setExactAndAllowWhileIdle(
+                                android.app.AlarmManager.RTC_WAKEUP,
+                                nextTime,
+                                pendingIntent
+                            )
+                            android.util.Log.d("AlarmActivity", "Next repeat scheduled with setExactAndAllowWhileIdle")
+                        }
+                    } else {
+                        alarmManager.setExact(
+                            android.app.AlarmManager.RTC_WAKEUP,
+                            nextTime,
+                            pendingIntent
+                        )
+                        android.util.Log.d("AlarmActivity", "Next repeat scheduled with setExact")
+                    }
+                } else {
+                    android.util.Log.d("AlarmActivity", "No future occurrences to schedule")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error scheduling next repeat: ${e.message}")
+        }
     }
     
     override fun onBackPressed() {

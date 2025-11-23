@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.json.JSONException
+import com.reminder.app.data.RepeatType
 
 class NotificationScheduler : BroadcastReceiver() {
     
@@ -117,6 +118,7 @@ class NotificationScheduler : BroadcastReceiver() {
             android.util.Log.d("NotificationScheduler", "Scheduling reminder: ${reminder.content}")
             android.util.Log.d("NotificationScheduler", "Reminder ID: ${reminder.id}")
             android.util.Log.d("NotificationScheduler", "Number of trigger points: ${triggerPoints.size}")
+            android.util.Log.d("NotificationScheduler", "Repeat type: ${reminder.repeatType}, interval: ${reminder.repeatInterval}")
             
             // Check exact alarm permission for Android 12+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -136,6 +138,7 @@ class NotificationScheduler : BroadcastReceiver() {
             // Cancel existing alarms for this reminder
             cancelReminder(context, reminder.id)
             
+            // Schedule the initial alarm
             triggerPoints.forEachIndexed { index, triggerPoint ->
                 val triggerTime = triggerPoint.calculateTriggerTime(reminder.reminderTime)
                 val currentTime = System.currentTimeMillis()
@@ -229,6 +232,80 @@ class NotificationScheduler : BroadcastReceiver() {
                     }
                 } else {
                     android.util.Log.d("NotificationScheduler", "Skipping trigger point ${index + 1} - time is in the past")
+                }
+            }
+            
+            // Schedule repeat alarms if needed
+            scheduleRepeatAlarms(context, reminder)
+        }
+        
+        private fun scheduleRepeatAlarms(context: Context, reminder: Reminder) {
+            val repeatPattern = reminder.getRepeatPatternData()
+            if (repeatPattern.type == com.reminder.app.data.RepeatType.NONE) return
+            
+            android.util.Log.d("NotificationScheduler", "Setting up repeat alarms for type: ${repeatPattern.type}, interval: ${repeatPattern.interval}")
+            
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val currentTime = System.currentTimeMillis()
+            
+            // Get next occurrences
+            val nextOccurrences = reminder.getFutureOccurrences(10)
+            
+            // Schedule up to 10 future occurrences
+            nextOccurrences.forEachIndexed { index, nextTime ->
+                val triggerTime = nextTime.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                
+                if (triggerTime > currentTime) {
+                    val intent = Intent(context, NotificationScheduler::class.java).apply {
+                        putExtra(EXTRA_REMINDER_TITLE, reminder.content)
+                        putExtra(EXTRA_REMINDER_CONTENT, reminder.content)
+                        putExtra(EXTRA_REMINDER_ID, reminder.id)
+                        putExtra(EXTRA_REMINDER_JSON, reminderToJson(reminder))
+                        putExtra(EXTRA_TRIGGER_TYPE, "REPEAT_OCCURRENCE")
+                        putExtra(EXTRA_ENABLE_FLASH, true)
+                        putExtra(EXTRA_ENABLE_SOUND, true)
+                        putExtra(EXTRA_ENABLE_VIBRATION, true)
+                    }
+                    
+                    // Use unique request code for repeat occurrence
+                    val requestCode = "${reminder.id}_repeat_$index".hashCode()
+                    val pendingIntent = PendingIntent.getBroadcast(
+                        context,
+                        requestCode,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    
+                    try {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            if (!alarmManager.canScheduleExactAlarms()) {
+                                alarmManager.setAndAllowWhileIdle(
+                                    AlarmManager.RTC_WAKEUP,
+                                    triggerTime,
+                                    pendingIntent
+                                )
+                                android.util.Log.d("NotificationScheduler", "Repeat alarm $index scheduled with setAndAllowWhileIdle")
+                            } else {
+                                alarmManager.setExactAndAllowWhileIdle(
+                                    AlarmManager.RTC_WAKEUP,
+                                    triggerTime,
+                                    pendingIntent
+                                )
+                                android.util.Log.d("NotificationScheduler", "Repeat alarm $index scheduled with setExactAndAllowWhileIdle")
+                            }
+                        } else {
+                            alarmManager.setExact(
+                                AlarmManager.RTC_WAKEUP,
+                                triggerTime,
+                                pendingIntent
+                            )
+                            android.util.Log.d("NotificationScheduler", "Repeat alarm $index scheduled with setExact")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("NotificationScheduler", "Failed to schedule repeat alarm $index: ${e.message}")
+                    }
+                } else {
+                    android.util.Log.d("NotificationScheduler", "Skipping repeat occurrence $index - time is in the past")
                 }
             }
         }
