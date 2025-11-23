@@ -43,6 +43,7 @@ import android.speech.RecognizerIntent
 import android.util.Log
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.utils.SmartVoiceProcessor
+import com.reminder.app.utils.PromptEnhancer
 import com.reminder.app.viewmodel.ReminderViewModel
 // import com.reminder.app.ui.components.AlertSettingsComponent // Not used, using AlertSettingsScreenFixed instead
 import com.reminder.app.data.AlertConfig
@@ -212,7 +213,7 @@ fun calculateReminderTime(text: String): Long {
         targetCalendar.set(java.util.Calendar.SECOND, 0)
         targetCalendar.set(java.util.Calendar.MILLISECOND, 0)
         
-        // If the time is in the past for today, move to tomorrow
+        // If time is in the past for today, move to tomorrow
         if (text.contains("today", ignoreCase = true) && targetCalendar.timeInMillis <= now) {
             targetCalendar.add(java.util.Calendar.DAY_OF_MONTH, 1)
         }
@@ -820,7 +821,7 @@ fun TimePickerDialog(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
-                    
+                     
                      Row(
                          modifier = Modifier.fillMaxWidth(),
                          verticalAlignment = Alignment.CenterVertically,
@@ -859,7 +860,7 @@ fun TimePickerDialog(
                              Text("+", style = MaterialTheme.typography.bodyMedium)
                          }
                      }
-                    
+                     
                     Text(
                         text = formatHour(hour),
                         style = MaterialTheme.typography.bodySmall,
@@ -882,7 +883,7 @@ fun TimePickerDialog(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
-                    
+                     
                      Row(
                          modifier = Modifier.fillMaxWidth(),
                          verticalAlignment = Alignment.CenterVertically,
@@ -921,7 +922,7 @@ fun TimePickerDialog(
                              Text("+", style = MaterialTheme.typography.bodyMedium)
                          }
                      }
-                    
+                     
                     Text(
                         text = String.format("%02d min", minute.toInt()),
                         style = MaterialTheme.typography.bodySmall,
@@ -1013,6 +1014,11 @@ fun InputScreen(
     var content by remember { mutableStateOf("") }
     var isProcessing by remember { mutableStateOf(false) }
     var loadedReminder by remember { mutableStateOf<com.reminder.app.data.Reminder?>(null) }
+    
+    // Prompt enhancement state
+    var showPromptEnhancements by remember { mutableStateOf(false) }
+    var promptEnhancements by remember { mutableStateOf<List<PromptEnhancer.EnhancedPrompt>>(emptyList()) }
+    var isEnhancingPrompt by remember { mutableStateOf(false) }
     
     // Priority selection
     var selectedPriority by remember { mutableStateOf(5) }
@@ -1259,6 +1265,7 @@ fun InputScreen(
         }
     }
     
+    
 
     
     // Handle speech results
@@ -1266,6 +1273,18 @@ fun InputScreen(
         speechResult?.let { result ->
             if (!result.contains("permission") && !result.contains("not available") && !result.contains("error") && !result.contains("Try:") && !result.contains("Hey Google")) {
                 content = result
+                
+                // Check if the voice input needs enhancement and auto-suggest
+                scope.launch {
+                    kotlinx.coroutines.delay(500) // Small delay to let content update
+                    val enhancer = PromptEnhancer()
+                    if (enhancer.needsEnhancement(result)) {
+                        // Auto-generate enhancements for voice input
+                        promptEnhancements = enhancer.enhancePrompt(result)
+                        // Don't show dialog automatically, but have enhancements ready
+                        Log.d("InputScreen", "Voice input needs enhancement: ${promptEnhancements.size} suggestions generated")
+                    }
+                }
             }
             speechManager.clearSpeechResult()
         }
@@ -1455,6 +1474,95 @@ fun InputScreen(
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                     }
+                    
+                    // Enhance Prompt Button
+                    Button(
+                        onClick = {
+                            if (content.isNotBlank()) {
+                                isEnhancingPrompt = true
+                                scope.launch {
+                                    try {
+                                        val enhancer = PromptEnhancer()
+                                        promptEnhancements = enhancer.enhancePrompt(content)
+                                        showPromptEnhancements = true
+                                    } catch (e: Exception) {
+                                        Log.e("InputScreen", "Error enhancing prompt: ${e.message}")
+                                    } finally {
+                                        isEnhancingPrompt = false
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = content.isNotBlank() && !isEnhancingPrompt,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        )
+                    ) {
+                        if (isEnhancingPrompt) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onTertiary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "✨ Enhancing...",
+                                color = MaterialTheme.colorScheme.onTertiary
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Settings,
+                                contentDescription = "Enhance Prompt",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "✨ Enhance Prompt",
+                                color = MaterialTheme.colorScheme.onTertiary
+                            )
+                        }
+                    }
+                    
+                    // Show enhancement suggestion indicator
+                    if (promptEnhancements.isNotEmpty() && !showPromptEnhancements) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = "✨ ${promptEnhancements.size} enhancement suggestions available",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    }
+                                    
+                                    Button(
+                                        onClick = { showPromptEnhancements = true },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    ) {
+                                        Text(
+                                            text = "View",
+                                            color = MaterialTheme.colorScheme.onTertiary,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     
                     if (isListening) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -2066,5 +2174,165 @@ fun InputScreen(
         AlertSettingsScreenFixed(
             onBack = { showAlertSettings = false }
         )
+    }
+    
+    // Prompt Enhancements Dialog
+    if (showPromptEnhancements) {
+        Dialog(onDismissRequest = { showPromptEnhancements = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "✨ Enhanced Prompts",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        IconButton(onClick = { showPromptEnhancements = false }) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Original prompt
+                    Text(
+                        text = "Original:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Enhanced suggestions
+                    Text(
+                        text = "Suggestions:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // List of enhancements
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        promptEnhancements.forEachIndexed { index, enhancement ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        // Apply the enhancement
+                                        content = enhancement.enhancedPrompt
+                                        showPromptEnhancements = false
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp)
+                                ) {
+                                    // Enhancement type and confidence
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = PromptEnhancer().getEnhancementTypeDescription(enhancement.enhancementType),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        
+                                        Text(
+                                            text = "${(enhancement.confidence * 100).toInt()}% match",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    
+                                    // Enhanced prompt
+                                    Text(
+                                        text = enhancement.enhancedPrompt,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    
+                                    // Explanation
+                                    Text(
+                                        text = enhancement.explanation,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = { showPromptEnhancements = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                        
+                        Spacer(modifier = Modifier.width(8.dp))
+                        
+                        Button(
+                            onClick = {
+                                // Apply the best enhancement (highest confidence)
+                                val bestEnhancement = promptEnhancements.maxByOrNull { it.confidence }
+                                if (bestEnhancement != null) {
+                                    content = bestEnhancement.enhancedPrompt
+                                }
+                                showPromptEnhancements = false
+                            }
+                        ) {
+                            Text("Apply Best")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -58,6 +58,7 @@ class AlarmActivity : ComponentActivity() {
         val content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
         val reminderId = intent.getIntExtra("reminder_id", -1)
         val alertLevelString = intent.getStringExtra("alert_level") ?: "LOW"
+        val customProfileName = intent.getStringExtra("custom_profile_name")
         val alertLevel = try {
             AlertLevel.valueOf(alertLevelString)
         } catch (e: Exception) {
@@ -68,7 +69,7 @@ class AlarmActivity : ComponentActivity() {
         val alertLevelConfig = loadAlertLevelConfig(this)
         
         // Get alert config (already loaded above)
-        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel)
+        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel, customProfileName)
         
         handler = Handler(Looper.getMainLooper())
         
@@ -81,7 +82,8 @@ class AlarmActivity : ComponentActivity() {
                     alertConfig = alertConfig,
                     onDismiss = { dismissAlarm() },
                     alarmCount = alarmCount,
-                    maxAlarms = maxAlarms
+                    maxAlarms = maxAlarms,
+                    customProfileName = customProfileName
                 )
             }
         }
@@ -235,7 +237,8 @@ fun AlarmScreen(
     alertConfig: com.reminder.app.data.AlertConfig,
     onDismiss: () -> Unit,
     alarmCount: Int,
-    maxAlarms: Int
+    maxAlarms: Int,
+    customProfileName: String? = null
 ) {
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
@@ -298,7 +301,11 @@ fun AlarmScreen(
                         fontSize = 48.sp
                     )
                     Text(
-                        text = "$alertLevel Level - Alarm $alarmCount of $maxAlarms",
+                        text = if (alertLevel == AlertLevel.CUSTOM && !customProfileName.isNullOrBlank()) {
+                            "$customProfileName - Alarm $alarmCount of $maxAlarms"
+                        } else {
+                            "$alertLevel Level - Alarm $alarmCount of $maxAlarms"
+                        },
                         fontSize = 16.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Medium
@@ -375,12 +382,19 @@ private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
     }
 }
 
-private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel): com.reminder.app.data.AlertConfig {
+private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, customProfileName: String? = null): com.reminder.app.data.AlertConfig {
     return when (level) {
         AlertLevel.LOW -> levelConfig.lowLevel
         AlertLevel.MEDIUM -> levelConfig.mediumLevel
         AlertLevel.HIGH -> levelConfig.highLevel
         AlertLevel.URGENT -> levelConfig.urgentLevel
-        AlertLevel.CUSTOM -> levelConfig.customProfiles.values.firstOrNull() ?: com.reminder.app.data.AlertConfig.Companion.getMediumLevelDefaults()
+        AlertLevel.CUSTOM -> {
+            // Use the specific custom profile name if provided, otherwise fall back to first available
+            if (!customProfileName.isNullOrBlank()) {
+                levelConfig.customProfiles[customProfileName] ?: com.reminder.app.data.AlertConfig.Companion.getMediumLevelDefaults()
+            } else {
+                levelConfig.customProfiles.values.firstOrNull() ?: com.reminder.app.data.AlertConfig.Companion.getMediumLevelDefaults()
+            }
+        }
     }
 }

@@ -74,7 +74,8 @@ class NotificationScheduler : BroadcastReceiver() {
         }
         
         // Launch alarm activity for immediate alerts
-        launchAlarmActivity(context, title, content, reminderId)
+        val reminder = reminderJson?.let { parseReminderFromJson(it) }
+        launchAlarmActivity(context, title, content, reminderId, reminder)
         
         // Also show notification as backup
         showNotification(context, title, content, reminderId)
@@ -313,17 +314,25 @@ class NotificationScheduler : BroadcastReceiver() {
             }
         }
 
-        private fun launchAlarmActivity(context: Context, title: String, content: String, reminderId: Int) {
+        private fun launchAlarmActivity(context: Context, title: String, content: String, reminderId: Int, reminder: Reminder? = null) {
             try {
                 val intent = android.content.Intent(context, com.reminder.app.ui.screens.AlarmActivity::class.java).apply {
                     putExtra("alarm_title", title)
                     putExtra("alarm_content", content)
                     putExtra("reminder_id", reminderId)
+                    // Pass alert level information
+                    reminder?.let {
+                        putExtra("alert_level", it.alertLevel)
+                        putExtra("custom_profile_name", it.getCustomProfileNameFromField())
+                    }
                     flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 
                 context.startActivity(intent)
                 android.util.Log.d("NotificationScheduler", "AlarmActivity launched for reminder: $title")
+                reminder?.let {
+                    android.util.Log.d("NotificationScheduler", "Alert level: ${it.alertLevel}, Custom profile: ${it.getCustomProfileNameFromField()}")
+                }
             } catch (e: Exception) {
                 android.util.Log.e("NotificationScheduler", "Failed to launch AlarmActivity: ${e.message}")
                 e.printStackTrace()
