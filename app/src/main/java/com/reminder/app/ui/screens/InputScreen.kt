@@ -43,7 +43,6 @@ import android.speech.RecognizerIntent
 import android.util.Log
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.utils.SmartVoiceProcessor
-import com.reminder.app.utils.PromptEnhancer
 import com.reminder.app.viewmodel.ReminderViewModel
 // import com.reminder.app.ui.components.AlertSettingsComponent // Not used, using AlertSettingsScreenFixed instead
 import com.reminder.app.data.AlertConfig
@@ -1061,11 +1060,6 @@ fun InputScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var loadedReminder by remember { mutableStateOf<Reminder?>(null) }
     
-    // Prompt enhancement state
-    var showPromptEnhancements by remember { mutableStateOf(false) }
-    var promptEnhancements by remember { mutableStateOf<List<PromptEnhancer.EnhancedPrompt>>(emptyList()) }
-    var isEnhancingPrompt by remember { mutableStateOf(false) }
-    
     // Priority selection
     var selectedPriority by remember { mutableStateOf(5) }
     
@@ -1086,6 +1080,7 @@ fun InputScreen(
     var showTimeSuggestions by remember { mutableStateOf(false) }
     var whenDay by remember { mutableStateOf("") }
     var whenTime by remember { mutableStateOf("") }
+    var focusTimeField by remember { mutableStateOf(false) }
     
     // Common time suggestions
     val timeSuggestions = listOf(
@@ -1313,17 +1308,6 @@ fun InputScreen(
             if (!result.contains("permission") && !result.contains("not available") && !result.contains("error") && !result.contains("Try:") && !result.contains("Hey Google")) {
                 content = result
                 
-                // Check if the voice input needs enhancement and auto-suggest
-                scope.launch {
-                    kotlinx.coroutines.delay(500) // Small delay to let content update
-                    val enhancer = PromptEnhancer()
-                    if (enhancer.needsEnhancement(result)) {
-                        // Auto-generate enhancements for voice input
-                        promptEnhancements = enhancer.enhancePrompt(result)
-                        // Don't show dialog automatically, but have enhancements ready
-                        Log.d("InputScreen", "Voice input needs enhancement: ${promptEnhancements.size} suggestions generated")
-                    }
-                }
             }
             speechManager.clearSpeechResult()
         }
@@ -1452,15 +1436,142 @@ fun InputScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Alert Level Selector - Moved to top
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         ) {
-            // Main Voice Input Section - Moved voice button to top
+            Column(
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Text(
+                    text = "🔔 Alert Level",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Alert level selector
+                var expanded by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = when (alertLevel) {
+                                    AlertLevel.LOW -> "Low"
+                                    AlertLevel.MEDIUM -> "Medium"
+                                    AlertLevel.HIGH -> "High"
+                                    AlertLevel.URGENT -> "Urgent"
+                                    AlertLevel.CUSTOM -> {
+                                        // Use the selected custom profile name
+                                        selectedCustomProfileName ?: loadedReminder?.getCustomProfileNameFromField() ?: "Custom"
+                                    }
+                                },
+                                color = when (alertLevel) {
+                                    AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                    AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                    AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                    AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                }
+                            )
+                            Icon(
+                                Icons.Default.ExpandMore,
+                                contentDescription = "Select Alert Level",
+                                tint = when (alertLevel) {
+                                    AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                    AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                    AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                    AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                }
+                            )
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        // Get custom profiles from alert level config
+                        val context = LocalContext.current
+                        val alertLevelConfig = loadInputScreenAlertLevelConfig(context)
+                        val alertOptions = AlertLevelOption.getAllOptions(alertLevelConfig.customProfiles)
+                        
+                        // First add built-in options
+                        AlertLevelOption.getBuiltInOptions().forEach { option ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = option.displayName,
+                                        color = when (option.level) {
+                                            AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
+                                            AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                            AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                            AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    alertLevel = option.level
+                                    selectedCustomProfileName = null
+                                    expanded = false
+                                }
+                            )
+                        }
+                        
+                        // Then add custom profile options
+                        AlertLevelOption.getCustomOptions(alertLevelConfig.customProfiles).forEach { option ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = option.displayName,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                },
+                                onClick = {
+                                    // For custom profiles, we need to store the actual profile name
+                                    alertLevel = AlertLevel.CUSTOM
+                                    // Store custom profile name in a separate variable for later use
+                                    selectedCustomProfileName = option.customProfileName ?: option.displayName
+                                    android.util.Log.d("InputScreen", "Selected custom profile: ${selectedCustomProfileName}")
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Configure alert behavior in ⚙️ Alert Settings",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        // Main Voice Input Section - Moved voice button to top
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -1514,94 +1625,6 @@ fun InputScreen(
                         )
                     }
                     
-                    // Enhance Prompt Button
-                    Button(
-                        onClick = {
-                            if (content.isNotBlank()) {
-                                isEnhancingPrompt = true
-                                scope.launch {
-                                    try {
-                                        val enhancer = PromptEnhancer()
-                                        promptEnhancements = enhancer.enhancePrompt(content)
-                                        showPromptEnhancements = true
-                                    } catch (e: Exception) {
-                                        Log.e("InputScreen", "Error enhancing prompt: ${e.message}")
-                                    } finally {
-                                        isEnhancingPrompt = false
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = content.isNotBlank() && !isEnhancingPrompt,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiary
-                        )
-                    ) {
-                        if (isEnhancingPrompt) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onTertiary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "✨ Enhancing...",
-                                color = MaterialTheme.colorScheme.onTertiary
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Settings,
-                                contentDescription = "Enhance Prompt",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "✨ Enhance Prompt",
-                                color = MaterialTheme.colorScheme.onTertiary
-                            )
-                        }
-                    }
-                    
-                    // Show enhancement suggestion indicator
-                    if (promptEnhancements.isNotEmpty() && !showPromptEnhancements) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        text = "✨ ${promptEnhancements.size} enhancement suggestions available",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                    }
-                                    
-                                    Button(
-                                        onClick = { showPromptEnhancements = true },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.tertiary
-                                        )
-                                    ) {
-                                        Text(
-                                            text = "View",
-                                            color = MaterialTheme.colorScheme.onTertiary,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     
                     if (isListening) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -1717,61 +1740,128 @@ fun InputScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Quick Time Suggestions Dropdown
-                    ExposedDropdownMenuBox(
-                        expanded = showTimeSuggestions,
-                        onExpandedChange = { showTimeSuggestions = it }
+                    // Quick Time Suggestions - Using Card instead of TextField to avoid keyboard
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTimeSuggestions = !showTimeSuggestions },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "⏰ Quick Time",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = if (whenTime.isNotBlank()) whenTime else "Tap for suggestions",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (whenTime.isNotBlank())
+                                        MaterialTheme.colorScheme.onSurface
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                Icons.Default.ExpandMore,
+                                contentDescription = "Show Suggestions",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    // Time Suggestions Dropdown (appears below the card)
+                    if (showTimeSuggestions) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .heightIn(max = 200.dp), // Fixed max height to prevent infinity constraints
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(timeSuggestions) { suggestion ->
+                                    OutlinedButton(
+                                        onClick = {
+                                            whenTime = suggestion
+                                            showTimeSuggestions = false
+                                            
+                                            // Parse and update selected time if it's a specific time
+                                            val timePattern = Regex("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", RegexOption.IGNORE_CASE)
+                                            val match = timePattern.find(suggestion)
+                                            if (match != null) {
+                                                val hour = match.groupValues[1].toIntOrNull() ?: 0
+                                                val minute = match.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: 0
+                                                val ampm = match.groupValues.getOrNull(3)?.lowercase()
+                                                
+                                                val parsedHour = when {
+                                                    ampm == "am" -> if (hour == 12) 0 else hour
+                                                    ampm == "pm" -> if (hour == 12) 12 else hour + 12
+                                                    else -> hour
+                                                }
+                                                selectedTime = LocalTime.of(parsedHour.coerceIn(0, 23), minute.coerceIn(0, 59))
+                                            }
+                                        },
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Text(
+                                            text = suggestion,
+                                            fontSize = 10.sp,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Optional: Manual time input field (only shown when explicitly requested)
+                    if (focusTimeField) {
+                        Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = whenTime,
-                            onValueChange = { 
+                            onValueChange = {
                                 whenTime = it
                                 showTimeSuggestions = false
                             },
-                            label = { Text("Quick Time (optional)") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            placeholder = { Text("e.g., Morning, 3pm, 2:30pm") },
-                            trailingIcon = {
-                                IconButton(onClick = { showTimeSuggestions = !showTimeSuggestions }) {
-                                    Icon(
-                                        Icons.Default.ExpandMore,
-                                        contentDescription = "Show Suggestions"
-                                    )
-                                }
-                            }
+                            label = { Text("Custom Time") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("e.g., 3:30pm, 14:30") },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text
+                            )
                         )
                         
-                        ExposedDropdownMenu(
-                            expanded = showTimeSuggestions,
-                            onDismissRequest = { showTimeSuggestions = false }
+                        // Add a button to hide the manual input field
+                        TextButton(
+                            onClick = { focusTimeField = false },
+                            modifier = Modifier.align(Alignment.End)
                         ) {
-                            timeSuggestions.forEach { suggestion ->
-                                DropdownMenuItem(
-                                    text = { Text(suggestion) },
-                                    onClick = {
-                                        whenTime = suggestion
-                                        showTimeSuggestions = false
-                                        
-                                        // Parse and update selected time if it's a specific time
-                                        val timePattern = Regex("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", RegexOption.IGNORE_CASE)
-                                        val match = timePattern.find(suggestion)
-                                        if (match != null) {
-                                            val hour = match.groupValues[1].toIntOrNull() ?: 0
-                                            val minute = match.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: 0
-                                            val ampm = match.groupValues.getOrNull(3)?.lowercase()
-                                            
-                                            val parsedHour = when {
-                                                ampm == "am" -> if (hour == 12) 0 else hour
-                                                ampm == "pm" -> if (hour == 12) 12 else hour + 12
-                                                else -> hour
-                                            }
-                                            selectedTime = LocalTime.of(parsedHour.coerceIn(0, 23), minute.coerceIn(0, 59))
-                                        }
-                                    }
-                                )
-                            }
+                            Text("Hide Manual Input", fontSize = 10.sp)
+                        }
+                    } else {
+                        // Add a small button to show manual input field
+                        TextButton(
+                            onClick = { focusTimeField = true },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Manual Input", fontSize = 10.sp)
                         }
                     }
                     
@@ -1887,135 +1977,6 @@ fun InputScreen(
                             repeatPattern = pattern
                         }
                     )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // Alert Level Selector
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Text(
-                                text = "🔔 Alert Level",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            // Alert level selector
-                            var expanded by remember { mutableStateOf(false) }
-                            Box {
-                                OutlinedButton(
-                                    onClick = { expanded = true },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = when (alertLevel) {
-                                                AlertLevel.LOW -> "Low"
-                                                AlertLevel.MEDIUM -> "Medium"
-                                                AlertLevel.HIGH -> "High"
-                                                AlertLevel.URGENT -> "Urgent"
-                                                AlertLevel.CUSTOM -> {
-                                                    // Use the selected custom profile name
-                                                    selectedCustomProfileName ?: loadedReminder?.getCustomProfileNameFromField() ?: "Custom"
-                                                }
-                                            },
-                                            color = when (alertLevel) {
-                                                AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
-                                            }
-                                        )
-                                        Icon(
-                                            Icons.Default.ExpandMore,
-                                            contentDescription = "Select Alert Level",
-                                            tint = when (alertLevel) {
-                                                AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
-                                            }
-                                        )
-                                    }
-                                }
-                                DropdownMenu(
-                                    expanded = expanded,
-                                    onDismissRequest = { expanded = false }
-                                ) {
-                                    // Get custom profiles from alert level config
-                                    val context = LocalContext.current
-                                    val alertLevelConfig = loadInputScreenAlertLevelConfig(context)
-                                    val alertOptions = AlertLevelOption.getAllOptions(alertLevelConfig.customProfiles)
-                                    
-                                    // First add built-in options
-                                    AlertLevelOption.getBuiltInOptions().forEach { option ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    text = option.displayName,
-                                                    color = when (option.level) {
-                                                        AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                                        AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
-                                                        AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                                        AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                                        AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
-                                                    }
-                                                )
-                                            },
-                                            onClick = {
-                                                alertLevel = option.level
-                                                selectedCustomProfileName = null
-                                                expanded = false
-                                            }
-                                        )
-                                    }
-                                    
-                                    // Then add custom profile options
-                                    AlertLevelOption.getCustomOptions(alertLevelConfig.customProfiles).forEach { option ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    text = option.displayName,
-                                                    color = MaterialTheme.colorScheme.tertiary
-                                                )
-                                            },
-                                            onClick = {
-                                                // For custom profiles, we need to store the actual profile name
-                                                alertLevel = AlertLevel.CUSTOM
-                                                // Store the custom profile name in a separate variable for later use
-                                                selectedCustomProfileName = option.customProfileName ?: option.displayName
-                                                android.util.Log.d("InputScreen", "Selected custom profile: ${selectedCustomProfileName}")
-                                                expanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            Text(
-                                text = "Configure alert behavior in ⚙️ Alert Settings",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
@@ -2219,165 +2180,5 @@ fun InputScreen(
         AlertSettingsScreenFixed(
             onBack = { showAlertSettings = false }
         )
-    }
-    
-    // Prompt Enhancements Dialog
-    if (showPromptEnhancements) {
-        Dialog(onDismissRequest = { showPromptEnhancements = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "✨ Enhanced Prompts",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
-                        IconButton(onClick = { showPromptEnhancements = false }) {
-                            Icon(
-                                Icons.Default.ArrowBack,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Original prompt
-                    Text(
-                        text = "Original:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = content,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Enhanced suggestions
-                    Text(
-                        text = "Suggestions:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // List of enhancements
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        promptEnhancements.forEachIndexed { index, enhancement ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        // Apply the enhancement
-                                        content = enhancement.enhancedPrompt
-                                        showPromptEnhancements = false
-                                    },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(12.dp)
-                                ) {
-                                    // Enhancement type and confidence
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = PromptEnhancer().getEnhancementTypeDescription(enhancement.enhancementType),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        
-                                        Text(
-                                            text = "${(enhancement.confidence * 100).toInt()}% match",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    
-                                    // Enhanced prompt
-                                    Text(
-                                        text = enhancement.enhancedPrompt,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    
-                                    // Explanation
-                                    Text(
-                                        text = enhancement.explanation,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Action buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { showPromptEnhancements = false }
-                        ) {
-                            Text("Cancel")
-                        }
-                        
-                        Spacer(modifier = Modifier.width(8.dp))
-                        
-                        Button(
-                            onClick = {
-                                // Apply the best enhancement (highest confidence)
-                                val bestEnhancement = promptEnhancements.maxByOrNull { it.confidence }
-                                if (bestEnhancement != null) {
-                                    content = bestEnhancement.enhancedPrompt
-                                }
-                                showPromptEnhancements = false
-                            }
-                        ) {
-                            Text("Apply Best")
-                        }
-                    }
-                }
-            }
-        }
     }
 }
