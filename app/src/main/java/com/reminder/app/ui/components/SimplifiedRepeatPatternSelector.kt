@@ -21,6 +21,9 @@ fun SimplifiedRepeatPatternSelector(
     // Common repeat patterns with smart defaults
     val quickPatterns = listOf(
         RepeatPattern(type = RepeatType.NONE, interval = 0),
+        RepeatPattern(type = RepeatType.MINUTELY, interval = 1),
+        RepeatPattern(type = RepeatType.MINUTELY, interval = 2),
+        RepeatPattern(type = RepeatType.MINUTELY, interval = 3),
         RepeatPattern(type = RepeatType.MINUTELY, interval = 5),
         RepeatPattern(type = RepeatType.MINUTELY, interval = 15),
         RepeatPattern(type = RepeatType.MINUTELY, interval = 30),
@@ -33,7 +36,7 @@ fun SimplifiedRepeatPatternSelector(
     val patternLabels = mapOf(
         RepeatType.NONE to "Never",
         RepeatType.MINUTELY to "${quickPatterns[1].interval} min",
-        RepeatType.HOURLY to "${quickPatterns[2].interval} min",
+        RepeatType.HOURLY to "Hourly",
         RepeatType.DAILY to "Daily",
         RepeatType.WEEKLY to "Weekly",
         RepeatType.MONTHLY to "Monthly"
@@ -83,7 +86,15 @@ fun SimplifiedRepeatPatternSelector(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = patternLabels[pattern.type] ?: "Custom",
+                                    text = when (pattern.type) {
+                                        RepeatType.NONE -> "Never"
+                                        RepeatType.MINUTELY -> "${pattern.interval} min"
+                                        RepeatType.HOURLY -> "Hourly"
+                                        RepeatType.DAILY -> "Daily"
+                                        RepeatType.WEEKLY -> "Weekly"
+                                        RepeatType.MONTHLY -> "Monthly"
+                                        else -> "Custom"
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface

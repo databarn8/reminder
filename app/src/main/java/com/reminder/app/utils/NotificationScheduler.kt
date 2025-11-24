@@ -333,18 +333,21 @@ class NotificationScheduler : BroadcastReceiver() {
 
         private fun showNotification(context: Context, title: String, content: String, reminderId: Int) {
             createNotificationChannel(context)
-
+    
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
-
+    
             val pendingIntent = PendingIntent.getActivity(
                 context,
                 reminderId,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-
+    
+            // Use system alarm sound for urgent notifications
+            val alarmSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+            
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
@@ -355,14 +358,14 @@ class NotificationScheduler : BroadcastReceiver() {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
-                .setDefaults(NotificationCompat.DEFAULT_ALL) // Enable sound, vibration, lights
+                .setDefaults(NotificationCompat.DEFAULT_LIGHTS) // Only enable lights by default
                 .setOngoing(false) // Make sure it's not ongoing
                 .setOnlyAlertOnce(false) // Alert every time
                 .setWhen(System.currentTimeMillis()) // Show timestamp
                 .setShowWhen(true) // Display timestamp
                 .setLights(android.graphics.Color.RED, 1000, 1000) // Blink lights
                 .setVibrate(longArrayOf(0, 500, 200, 500)) // Vibration pattern
-                .setSound(android.net.Uri.parse("android.resource://${context.packageName}/raw/notification_chime")) // Custom chime sound
+                .setSound(alarmSoundUri) // Use system alarm sound
                 .setFullScreenIntent(pendingIntent, true) // Try to show as heads-up
                 .setPriority(NotificationCompat.PRIORITY_MAX) // Maximum priority
                 .setCategory(NotificationCompat.CATEGORY_ALARM) // Use alarm category for higher priority
