@@ -1,0 +1,428 @@
+package com.reminder.app.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.reminder.app.utils.CloudBackupManager
+import com.reminder.app.viewmodel.ReminderViewModel
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BackupSettingsScreen(
+    viewModel: ReminderViewModel,
+    onBack: () -> Unit,
+    onSignIn: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val cloudBackupManager = remember { CloudBackupManager(context) }
+    val reminders by viewModel.reminders.collectAsState()
+    
+    val backupStatus by cloudBackupManager.backupStatus.collectAsState()
+    val restoreStatus by cloudBackupManager.restoreStatus.collectAsState()
+    
+    var autoBackupEnabled by remember { mutableStateOf(false) }
+    var backupInterval by remember { mutableStateOf(24) }
+    var showBackupHistory by remember { mutableStateOf(false) }
+    var backupHistory by remember { mutableStateOf<List<CloudBackupManager.BackupInfo>>(emptyList()) }
+    
+    LaunchedEffect(Unit) {
+        backupHistory = cloudBackupManager.getBackupHistory()
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Backup & Sync") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Account Status
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Google Account",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Local backup only",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Manual Backup
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Manual Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    // Backup locally
+                                    GlobalScope.launch {
+                                        val reminders = reminders.toList()
+                                        cloudBackupManager.backupToLocal(reminders)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = backupStatus != CloudBackupManager.BackupStatus.BackingUp
+                            ) {
+                                if (backupStatus == CloudBackupManager.BackupStatus.BackingUp) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("Backup Locally")
+                            }
+                            
+                            OutlinedButton(
+                                onClick = {
+                                    // Restore from backup
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = restoreStatus != CloudBackupManager.RestoreStatus.Restoring
+                            ) {
+                                if (restoreStatus == CloudBackupManager.RestoreStatus.Restoring) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text("Restore")
+                            }
+                        }
+                        
+                        // Status messages
+                        when (backupStatus) {
+                            CloudBackupManager.BackupStatus.Success -> {
+                                Text(
+                                    text = "Backup completed successfully!",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            CloudBackupManager.BackupStatus.Error -> {
+                                Text(
+                                    text = "Backup failed. Please try again.",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            else -> {}
+                        }
+                        
+                        when (restoreStatus) {
+                            CloudBackupManager.RestoreStatus.Success -> {
+                                Text(
+                                    text = "Restore completed successfully!",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            CloudBackupManager.RestoreStatus.Error -> {
+                                Text(
+                                    text = "Restore failed. Please try again.",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            CloudBackupManager.RestoreStatus.NoBackup -> {
+                                Text(
+                                    text = "No backup files found.",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            
+            // Auto Backup Settings
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Auto Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Enable automatic backup")
+                            Switch(
+                                checked = autoBackupEnabled,
+                                onCheckedChange = { enabled ->
+                                    autoBackupEnabled = enabled
+                                    cloudBackupManager.scheduleAutoBackup(enabled, backupInterval)
+                                },
+                                enabled = false
+                            )
+                        }
+                        
+                        if (autoBackupEnabled) {
+                            Text(
+                                text = "Backup interval:",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            
+                            var expanded by remember { mutableStateOf(false) }
+                            val intervals = listOf(6, 12, 24, 48, 72)
+                            
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                OutlinedTextField(
+                                    value = "${backupInterval} hours",
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                )
+                                
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    intervals.forEach { interval ->
+                                        DropdownMenuItem(
+                                            text = { Text("${interval} hours") },
+                                            onClick = {
+                                                backupInterval = interval
+                                                cloudBackupManager.scheduleAutoBackup(true, interval)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Text(
+                            text = "Auto backup saves your reminders locally every 24 hours",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+            
+            // Backup History
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Backup History",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            TextButton(
+                                onClick = {
+                                    // Launch a coroutine to call suspend function
+                                    GlobalScope.launch {
+                                        backupHistory = cloudBackupManager.getBackupHistory()
+                                    }
+                                }
+                            ) {
+                                Text("Refresh")
+                            }
+                        }
+                        
+                        if (backupHistory.isEmpty()) {
+                            Text(
+                                text = "No backup files found",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        } else {
+                            backupHistory.take(10).forEach { backup ->
+                                BackupHistoryItem(backup = backup)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Export Options
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Export Options",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Text(
+                            text = "Export your reminders to share or migrate to another device:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    // Export to CSV
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Export CSV")
+                            }
+                            
+                            OutlinedButton(
+                                onClick = {
+                                    // Export to JSON
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Export JSON")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackupHistoryItem(backup: CloudBackupManager.BackupInfo) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    val sizeText = when {
+        backup.size < 1024 -> "${backup.size} B"
+        backup.size < 1024 * 1024 -> "${backup.size / 1024} KB"
+        else -> "${backup.size / (1024 * 1024)} MB"
+    }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = backup.fileName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = backup.location,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "•",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = sizeText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                text = dateFormat.format(Date(backup.timestamp)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        if (backup.isCloud) {
+            Icon(
+                imageVector = Icons.Default.Cloud,
+                contentDescription = "Cloud backup",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Storage,
+                contentDescription = "Local backup",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}

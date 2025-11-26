@@ -160,7 +160,11 @@ object ScreenFlashManager {
     
     fun triggerSound(context: Context, soundType: Int = 3) {
         try {
-            android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType")
+            // Check if sound is enabled in system settings
+            if (!isSoundEnabled(context)) {
+                android.util.Log.d("ScreenFlashManager", "Sound disabled in system settings")
+                return
+            }
             
             // Get different notification sounds based on type
             val soundUri = when (soundType) {
@@ -175,7 +179,7 @@ object ScreenFlashManager {
             
             android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType: ${soundUri}")
             
-            // Stop sound after 1.5 seconds
+            // Stop sound after 1.5 seconds (shorter for multiple sounds)
             handler.postDelayed({
                 ringtone?.stop()
             }, 1500)

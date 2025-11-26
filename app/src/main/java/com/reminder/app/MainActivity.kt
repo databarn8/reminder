@@ -26,8 +26,10 @@ import com.reminder.app.ui.screens.EmailSettingsScreen
 import com.reminder.app.ui.screens.InputScreen
 import com.reminder.app.ui.screens.ReminderListScreen
 import com.reminder.app.ui.screens.AlertSettingsScreenFixed
+import com.reminder.app.ui.screens.BackupSettingsScreen
 import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.utils.EnhancedEmailService
+import com.reminder.app.utils.GoogleSignInHelper
 import com.reminder.app.utils.NotificationScheduler
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.utils.ScreenFlashOverlay
@@ -41,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var speechManager: SpeechManager
     private lateinit var emailService: EnhancedEmailService
     private lateinit var emailPreferencesManager: EmailPreferencesManager
+    // private lateinit var googleSignInHelper: GoogleSignInHelper
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -98,6 +101,13 @@ class MainActivity : ComponentActivity() {
             android.util.Log.d("MainActivity", "Exact alarm permission denied")
         }
     }
+    
+    // private val googleSignInLauncher = registerForActivityResult(
+    //     ActivityResultContracts.StartActivityForResult()
+    // ) { result ->
+    //         val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+    //         googleSignInHelper.handleSignInResult(task)
+    //     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -106,6 +116,7 @@ class MainActivity : ComponentActivity() {
         speechManager.setActivity(this)
         emailService = EnhancedEmailService()
         emailPreferencesManager = EmailPreferencesManager(this)
+        // googleSignInHelper = GoogleSignInHelper(this)
         
         // Check and request necessary permissions
         if (!speechManager.hasAudioPermission()) {
@@ -180,6 +191,10 @@ class MainActivity : ComponentActivity() {
                                 onEmailSettingsClick = {
                                     android.util.Log.d("EmailSettingsTest", "Email settings button clicked!")
                                     navController.navigate("email_settings")
+                                },
+                                onBackupSettingsClick = {
+                                    android.util.Log.d("BackupTest", "Backup settings button clicked!")
+                                    navController.navigate("backup_settings")
                                 }
                             )
                         }
@@ -257,6 +272,17 @@ class MainActivity : ComponentActivity() {
                             android.util.Log.d("EmailSettingsTest", "Email settings screen navigated!")
                             EmailSettingsScreen(
                                 onBack = { navController.popBackStack() }
+                            )
+                        }
+                        
+                        composable("backup_settings") {
+                            android.util.Log.d("BackupTest", "Backup settings screen navigated!")
+                            BackupSettingsScreen(
+                                viewModel = viewModel,
+                                onBack = { navController.popBackStack() },
+                                onSignIn = {
+                                    // Google Sign In temporarily disabled
+                                }
                             )
                         }
                         

@@ -31,4 +31,7 @@ interface ReminderDao {
 
     @Query("DELETE FROM reminders")
     suspend fun deleteAllReminders()
+    
+    @Query("SELECT * FROM reminders ORDER BY createdAt DESC")
+    suspend fun getAllRemindersSync(): List<Reminder>
 }

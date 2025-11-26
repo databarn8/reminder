@@ -31,16 +31,9 @@ class DataExportImportManager(private val context: Context) {
             val file = File(downloadsDir, fileName)
             FileOutputStream(file).use { fos ->
                 val csvContent = buildString {
-                    appendLine("ID,Content,Category,Importance,Reminder Time,Created At,Alert Level,Repeat Type")
+                    appendLine("ID,Content,Category,Importance,Reminder Time,Created At")
                     reminders.forEach { reminder ->
-                        val alertLevel = try {
-                            val alertLevelField = reminder.javaClass.getDeclaredField("alertLevel")
-                            alertLevelField.isAccessible = true
-                            alertLevelField.get(reminder) as? String ?: "LOW"
-                        } catch (e: Exception) {
-                            "LOW"
-                        }
-                        appendLine("${reminder.id},\"${reminder.content}\",\"${reminder.category}\",${reminder.importance},${reminder.reminderTime},${reminder.createdAt},$alertLevel,${reminder.repeatType}")
+                        appendLine("${reminder.id},\"${reminder.content}\",\"${reminder.category}\",${reminder.importance},${reminder.reminderTime},${reminder.createdAt}")
                     }
                 }
                 fos.write(csvContent.toByteArray())
@@ -70,14 +63,6 @@ class DataExportImportManager(private val context: Context) {
                         put("category", reminder.category)
                         put("importance", reminder.importance)
                         put("reminderTime", reminder.reminderTime)
-                        val alertLevel = try {
-                            val alertLevelField = reminder.javaClass.getDeclaredField("alertLevel")
-                            alertLevelField.isAccessible = true
-                            alertLevelField.get(reminder) as? String ?: "LOW"
-                        } catch (e: Exception) {
-                            "LOW"
-                        }
-                        put("alertLevel", alertLevel)
                         put("repeatType", reminder.repeatType)
                         put("repeatInterval", reminder.repeatInterval)
                         put("isActive", reminder.isActive)

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -78,7 +79,8 @@ fun ReminderListScreen(
     onCalendarClick: () -> Unit = {},
     onEmailClick: (Reminder) -> Unit = {},
     onEmailSettingsClick: () -> Unit = {},
-    onAlertSettingsClick: () -> Unit = {}
+    onAlertSettingsClick: () -> Unit = {},
+    onBackupSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val reminders by viewModel.reminders.collectAsState()
@@ -131,6 +133,12 @@ fun ReminderListScreen(
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
                             contentDescription = "Calendar"
+                        )
+                    }
+                    IconButton(onClick = onBackupSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = "Backup Settings"
                         )
                     }
                 }

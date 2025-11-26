@@ -306,7 +306,18 @@ class EnhancedEmailService {
             val clip = android.content.ClipData.newPlainText("Reminder", text)
             clipboard.setPrimaryClip(clip)
             
-            android.widget.Toast.makeText(context, "Reminder copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+            // Only show toast if we're on the main thread
+            try {
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    android.widget.Toast.makeText(context, "Reminder copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    // Log instead of showing toast from background thread
+                    android.util.Log.d("EnhancedEmailService", "Reminder copied to clipboard: ${reminder.content.take(30)}")
+                }
+            } catch (toastException: Exception) {
+                // Even toast can fail, just log it
+                android.util.Log.d("EnhancedEmailService", "Reminder copied to clipboard: ${reminder.content.take(30)}")
+            }
         }
     }
     
