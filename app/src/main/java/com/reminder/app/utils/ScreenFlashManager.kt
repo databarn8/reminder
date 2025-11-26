@@ -43,7 +43,10 @@ object ScreenFlashManager {
         
         isFlashing = true
         
-        // Trigger visual flash through FlashState
+        // Trigger system-level screen flash that works even when phone is asleep
+        triggerSystemScreenFlash(context, flashColor, flashDurationMs, flashCount, intervalMs)
+        
+        // Also trigger visual flash through FlashState for when app is visible
         FlashState.triggerFlash(flashColor, flashDurationMs, flashCount, intervalMs)
         
         // Always trigger vibration and sound regardless of accessibility settings
@@ -67,6 +70,96 @@ object ScreenFlashManager {
             isFlashing = false
             android.util.Log.d("ScreenFlashManager", "Flash sequence completed, flag reset")
         }, totalDuration + 1000) // Add 1 second buffer
+    }
+    
+    /**
+     * Trigger system-level screen flash that works even when phone is asleep
+     * Uses WindowManager.LayoutParams to show a bright overlay
+     */
+    private fun triggerSystemScreenFlash(
+        context: Context,
+        flashColor: Color,
+        flashDurationMs: Long,
+        flashCount: Int,
+        intervalMs: Long
+    ) {
+        try {
+            android.util.Log.d("ScreenFlashManager", "Triggering system-level screen flash")
+            
+            // Convert Compose Color to Android Color
+            val androidColor = android.graphics.Color.valueOf(
+                java.lang.String.format("#%06X", (0xFFFFFF and flashColor.value.toLong()).toInt())
+            )
+            
+            // Create a system overlay that will flash even when screen is off
+            val flashView = android.view.View(context).apply {
+                setBackgroundColor(androidColor)
+                layoutParams = android.view.WindowManager.LayoutParams(
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                    android.view.WindowManager.LayoutParams.MATCH_PARENT
+                ).apply {
+                    type = android.view.WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY
+                    flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                            android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                            android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                    alpha = 0.95f // High visibility
+                }
+            }
+            
+            // Get WindowManager and add the overlay
+            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+            
+            // Flash sequence
+            var currentFlash = 0
+            fun flashIteration() {
+                if (currentFlash < flashCount) {
+                    try {
+                        windowManager.addView(flashView, flashView.layoutParams)
+                        android.util.Log.d("ScreenFlashManager", "System flash ON $currentFlash")
+                        
+                        handler.postDelayed({
+                            try {
+                                windowManager.removeView(flashView)
+                                android.util.Log.d("ScreenFlashManager", "System flash OFF $currentFlash")
+                                currentFlash++
+                                
+                                if (currentFlash < flashCount) {
+                                    handler.postDelayed({
+                                        flashIteration()
+                                    }, intervalMs)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("ScreenFlashManager", "Error removing flash view: ${e.message}")
+                                currentFlash++
+                                if (currentFlash < flashCount) {
+                                    handler.postDelayed({
+                                        flashIteration()
+                                    }, intervalMs)
+                                }
+                            }
+                        }, flashDurationMs)
+                    } catch (e: Exception) {
+                        android.util.Log.e("ScreenFlashManager", "Error adding flash view: ${e.message}")
+                        currentFlash++
+                        if (currentFlash < flashCount) {
+                            handler.postDelayed({
+                                flashIteration()
+                            }, intervalMs)
+                        }
+                    }
+                }
+            }
+            
+            // Start the flash sequence
+            flashIteration()
+            
+        } catch (e: Exception) {
+            android.util.Log.e("ScreenFlashManager", "System flash failed: ${e.message}")
+            // Fallback to just Compose flash if system flash fails
+            android.util.Log.d("ScreenFlashManager", "Falling back to Compose flash only")
+        }
     }
     
     /**

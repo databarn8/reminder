@@ -427,7 +427,6 @@ class NotificationScheduler : BroadcastReceiver() {
                     // Pass alert level information
                     reminder?.let {
                         putExtra("alert_level", it.alertLevel)
-                        putExtra("custom_profile_name", it.getCustomProfileNameFromField())
                     }
                     flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
@@ -459,7 +458,7 @@ class NotificationScheduler : BroadcastReceiver() {
                 }
                 
                 reminder?.let {
-                    android.util.Log.d("NotificationScheduler", "Alert level: ${it.alertLevel}, Custom profile: ${it.getCustomProfileNameFromField()}")
+                    android.util.Log.d("NotificationScheduler", "Alert level: ${it.alertLevel}")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("NotificationScheduler", "Failed to launch AlarmActivity: ${e.message}")

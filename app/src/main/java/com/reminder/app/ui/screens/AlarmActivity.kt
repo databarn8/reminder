@@ -35,6 +35,7 @@ import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.VibrationConfig
 import com.reminder.app.data.VibrationPattern
 import com.reminder.app.data.SoundConfig
+import com.reminder.app.data.SoundType
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.data.Reminder
 import com.reminder.app.utils.NotificationScheduler
@@ -66,18 +67,17 @@ class AlarmActivity : ComponentActivity() {
         val content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
         val reminderId = intent.getIntExtra("reminder_id", -1)
         val alertLevelString = intent.getStringExtra("alert_level") ?: "LOW"
-        val customProfileName = intent.getStringExtra("custom_profile_name")
         val alertLevel = try {
             AlertLevel.valueOf(alertLevelString)
         } catch (e: Exception) {
             AlertLevel.LOW
         }
         
-        // Load alert level config to get custom profile settings if needed
+        // Load alert level config
         val alertLevelConfig = loadAlertLevelConfig(this)
         
-        // Get alert config (already loaded above)
-        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel, customProfileName)
+        // Get alert config for the alert level
+        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel)
         
         handler = Handler(Looper.getMainLooper())
         
@@ -90,8 +90,7 @@ class AlarmActivity : ComponentActivity() {
                     alertConfig = alertConfig,
                     onDismiss = { dismissAlarm() },
                     alarmCount = alarmCount,
-                    maxAlarms = maxAlarms,
-                    customProfileName = customProfileName
+                    maxAlarms = maxAlarms
                 )
             }
         }
@@ -153,10 +152,8 @@ class AlarmActivity : ComponentActivity() {
             // Use different colors based on alert level
             val flashColor = when (alertLevel) {
                 AlertLevel.LOW -> androidx.compose.ui.graphics.Color(0xFFFFFF00) // Yellow
-                AlertLevel.MEDIUM -> androidx.compose.ui.graphics.Color(0xFFFF8C00) // Dark Orange
-                AlertLevel.HIGH -> androidx.compose.ui.graphics.Color(0xFFFF0000) // Red
+                AlertLevel.HIGH -> androidx.compose.ui.graphics.Color(0xFFFF8C00) // Dark Orange
                 AlertLevel.URGENT -> androidx.compose.ui.graphics.Color(0xFF8B0000) // Dark Red
-                AlertLevel.CUSTOM -> androidx.compose.ui.graphics.Color(0xFF9C27B0) // Purple
             }
             
             android.util.Log.d("AlarmActivity", "Triggering flash for $alertLevel with color: $flashColor")
@@ -180,29 +177,61 @@ class AlarmActivity : ComponentActivity() {
             mediaPlayer?.release()
             isReleased = true
             
-            // Get custom sound resource based on alert level
-            val soundResourceId = when (alertLevel) {
-                AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
-                AlertLevel.MEDIUM -> com.reminder.app.R.raw.soft_bell
-                AlertLevel.HIGH -> com.reminder.app.R.raw.notification_chime
-                AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
-                AlertLevel.CUSTOM -> com.reminder.app.R.raw.soft_bell
-            }
-            
-            // Try to use custom sound first
-            val alarmUri = try {
-                android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
-            } catch (e: Exception) {
-                android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
-                // Fallback to system sound types
-                val soundType = when (alertLevel) {
-                    AlertLevel.LOW -> RingtoneManager.TYPE_NOTIFICATION
-                    AlertLevel.MEDIUM -> RingtoneManager.TYPE_RINGTONE
-                    AlertLevel.HIGH -> RingtoneManager.TYPE_ALARM
-                    AlertLevel.URGENT -> RingtoneManager.TYPE_ALARM
-                    AlertLevel.CUSTOM -> RingtoneManager.TYPE_RINGTONE
+            // First try to use the configured sound type
+            val alarmUri = if (soundConfig.enabled) {
+                when (soundConfig.type) {
+                    SoundType.CHIME -> {
+                        // Try to use custom chime sound
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${com.reminder.app.R.raw.gentle_chime}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load chime sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
+                    SoundType.GENTLE -> {
+                        // Try to use gentle sound
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${com.reminder.app.R.raw.soft_bell}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load gentle sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
+                    SoundType.ALARM -> {
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    }
+                    SoundType.URGENT -> {
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    }
+                    else -> {
+                        // Fallback to alert level based sounds
+                        val soundResourceId = when (alertLevel) {
+                            AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
+                            AlertLevel.HIGH -> com.reminder.app.R.raw.soft_bell
+                            AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
+                        }
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
                 }
-                RingtoneManager.getDefaultUri(soundType) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            } else {
+                // Sound disabled, use fallback based on alert level
+                val soundResourceId = when (alertLevel) {
+                    AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
+                    AlertLevel.HIGH -> com.reminder.app.R.raw.soft_bell
+                    AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
+                }
+                try {
+                    android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                }
             }
             
             mediaPlayer = MediaPlayer().apply {
@@ -287,8 +316,7 @@ fun AlarmScreen(
     alertConfig: AlertConfig,
     onDismiss: () -> Unit,
     alarmCount: Int,
-    maxAlarms: Int,
-    customProfileName: String? = null
+    maxAlarms: Int
 ) {
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
@@ -304,10 +332,8 @@ fun AlarmScreen(
     
     val backgroundColor = when (alertLevel) {
         AlertLevel.LOW -> Color(0xFFFFA500) // Orange
-        AlertLevel.MEDIUM -> Color(0xFFFF6B35) // Dark Orange
-        AlertLevel.HIGH -> Color(0xFFFF0000) // Red
+        AlertLevel.HIGH -> Color(0xFFFF6B35) // Dark Orange
         AlertLevel.URGENT -> Color(0xFF8B0000) // Dark Red
-        AlertLevel.CUSTOM -> Color(0xFF9C27B0) // Purple
     }
     
     Box(
@@ -351,11 +377,7 @@ fun AlarmScreen(
                         fontSize = 48.sp
                     )
                     Text(
-                        text = if (alertLevel == AlertLevel.CUSTOM && !customProfileName.isNullOrBlank()) {
-                            "$customProfileName Alert"
-                        } else {
-                            "$alertLevel Level Alert"
-                        },
+                        text = "$alertLevel Level Alert",
                         fontSize = 16.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Medium
@@ -432,19 +454,10 @@ private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
     }
 }
 
-private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, customProfileName: String? = null): AlertConfig {
+private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel): AlertConfig {
     return when (level) {
         AlertLevel.LOW -> levelConfig.lowLevel
-        AlertLevel.MEDIUM -> levelConfig.mediumLevel
         AlertLevel.HIGH -> levelConfig.highLevel
         AlertLevel.URGENT -> levelConfig.urgentLevel
-        AlertLevel.CUSTOM -> {
-            // Use the specific custom profile name if provided, otherwise fall back to first available
-            if (!customProfileName.isNullOrBlank()) {
-                levelConfig.customProfiles[customProfileName] ?: AlertConfig.Companion.getMediumLevelDefaults()
-            } else {
-                levelConfig.customProfiles.values.firstOrNull() ?: AlertConfig.Companion.getMediumLevelDefaults()
-            }
-        }
     }
 }

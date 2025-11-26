@@ -14,8 +14,7 @@ import java.time.LocalDate
 data class AlertConfig(
     val alertType: AlertType = AlertType.NOTIFICATION_ONLY,
     val vibration: VibrationConfig = VibrationConfig(),
-    val sound: SoundConfig = SoundConfig(),
-    val series: AlertSeries = AlertSeries()
+    val sound: SoundConfig = SoundConfig()
 ) {
     companion object {
         fun fromJson(json: String): AlertConfig {
@@ -39,23 +38,12 @@ data class AlertConfig(
                 vibration = VibrationConfig(
                     enabled = false,
                     pattern = VibrationPattern.SINGLE,
-                    intensity = VibrationIntensity.LIGHT,
-                    seriesCount = 1,
-                    seriesInterval = 1000
+                    intensity = VibrationIntensity.LIGHT
                 ),
                 sound = SoundConfig(
                     enabled = false,
                     type = SoundType.GENTLE,
-                    volume = 0.3f,
-                    seriesCount = 1,
-                    seriesInterval = 2000
-                ),
-                series = AlertSeries(
-                    enabled = false,
-                    maxAttempts = 1,
-                    intervalMinutes = 0,
-                    escalationEnabled = false,
-                    stopOnAcknowledge = true
+                    volume = 0.3f
                 )
             )
         }
@@ -66,23 +54,12 @@ data class AlertConfig(
                 vibration = VibrationConfig(
                     enabled = true,
                     pattern = VibrationPattern.DOUBLE,
-                    intensity = VibrationIntensity.MEDIUM,
-                    seriesCount = 3,
-                    seriesInterval = 5000
+                    intensity = VibrationIntensity.MEDIUM
                 ),
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.CHIME,
-                    volume = 0.8f,
-                    seriesCount = 3,
-                    seriesInterval = 5000
-                ),
-                series = AlertSeries(
-                    enabled = true,
-                    maxAttempts = 3,
-                    intervalMinutes = 5,
-                    escalationEnabled = false,
-                    stopOnAcknowledge = true
+                    volume = 0.8f
                 )
             )
         }
@@ -93,23 +70,12 @@ data class AlertConfig(
                 vibration = VibrationConfig(
                     enabled = true,
                     pattern = VibrationPattern.TRIPLE,
-                    intensity = VibrationIntensity.STRONG,
-                    seriesCount = 5,
-                    seriesInterval = 2000
+                    intensity = VibrationIntensity.STRONG
                 ),
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.ALARM,
-                    volume = 1.0f,
-                    seriesCount = 5,
-                    seriesInterval = 2000
-                ),
-                series = AlertSeries(
-                    enabled = true,
-                    maxAttempts = 5,
-                    intervalMinutes = 2,
-                    escalationEnabled = true,
-                    stopOnAcknowledge = true
+                    volume = 1.0f
                 )
             )
         }
@@ -120,23 +86,12 @@ data class AlertConfig(
                 vibration = VibrationConfig(
                     enabled = true,
                     pattern = VibrationPattern.PULSE,
-                    intensity = VibrationIntensity.STRONG,
-                    seriesCount = 99, // Effectively unlimited
-                    seriesInterval = 60000 // Every minute
+                    intensity = VibrationIntensity.STRONG
                 ),
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.ALARM,
-                    volume = 1.0f,
-                    seriesCount = 99, // Effectively unlimited
-                    seriesInterval = 60000 // Every minute
-                ),
-                series = AlertSeries(
-                    enabled = true,
-                    maxAttempts = 99, // Effectively unlimited
-                    intervalMinutes = 1,
-                    escalationEnabled = true,
-                    stopOnAcknowledge = true
+                    volume = 1.0f
                 )
             )
         }
@@ -147,10 +102,8 @@ data class AlertConfig(
 @Serializable
 data class AlertLevelConfig(
     val lowLevel: AlertConfig = AlertConfig.getLowLevelDefaults(),
-    val mediumLevel: AlertConfig = AlertConfig.getMediumLevelDefaults(),
     val highLevel: AlertConfig = AlertConfig.getHighLevelDefaults(),
-    val urgentLevel: AlertConfig = AlertConfig.getUrgentLevelDefaults(),
-    val customProfiles: Map<String, AlertConfig> = emptyMap()
+    val urgentLevel: AlertConfig = AlertConfig.getUrgentLevelDefaults()
 ) {
     companion object {
         fun fromJson(json: String): AlertLevelConfig {
@@ -188,7 +141,7 @@ data class AlertLevelConfig(
 
 @Serializable
 enum class AlertLevel {
-    LOW, MEDIUM, HIGH, URGENT, CUSTOM
+    LOW, HIGH, URGENT
 }
 
 // Enhanced alert level option for dropdowns
@@ -196,27 +149,19 @@ enum class AlertLevel {
 data class AlertLevelOption(
     val displayName: String,
     val level: AlertLevel,
-    val customProfileName: String? = null,
     val config: AlertConfig? = null
 ) {
     companion object {
         fun getBuiltInOptions(): List<AlertLevelOption> {
             return listOf(
                 AlertLevelOption("Low", AlertLevel.LOW),
-                AlertLevelOption("Medium", AlertLevel.MEDIUM),
                 AlertLevelOption("High", AlertLevel.HIGH),
                 AlertLevelOption("Urgent", AlertLevel.URGENT)
             )
         }
         
-        fun getCustomOptions(customProfiles: Map<String, AlertConfig>): List<AlertLevelOption> {
-            return customProfiles.map { (name, config) ->
-                AlertLevelOption(name, AlertLevel.CUSTOM, name, config)
-            }
-        }
-        
-        fun getAllOptions(customProfiles: Map<String, AlertConfig>): List<AlertLevelOption> {
-            return getBuiltInOptions() + getCustomOptions(customProfiles)
+        fun getAllOptions(): List<AlertLevelOption> {
+            return getBuiltInOptions()
         }
     }
 }
@@ -233,9 +178,7 @@ enum class AlertType {
 data class VibrationConfig(
     val enabled: Boolean = true,
     val pattern: VibrationPattern = VibrationPattern.SINGLE,
-    val intensity: VibrationIntensity = VibrationIntensity.MEDIUM,
-    val seriesCount: Int = 1,
-    val seriesInterval: Int = 1000 // ms between series
+    val intensity: VibrationIntensity = VibrationIntensity.MEDIUM
 )
 
 @Serializable
@@ -258,8 +201,6 @@ data class SoundConfig(
     val enabled: Boolean = true,
     val type: SoundType = SoundType.CHIME,
     val volume: Float = 0.8f,
-    val seriesCount: Int = 1,
-    val seriesInterval: Int = 2000, // ms between series
     val customSoundUri: String? = null // Future feature
 )
 
@@ -272,14 +213,6 @@ enum class SoundType {
     CUSTOM         // User-selected sound (future)
 }
 
-@Serializable
-data class AlertSeries(
-    val enabled: Boolean = false,
-    val maxAttempts: Int = 3,
-    val intervalMinutes: Int = 5,
-    val escalationEnabled: Boolean = true,
-    val stopOnAcknowledge: Boolean = true
-)
 
 // Repeat pattern data structure
 @Serializable

@@ -48,9 +48,7 @@ import com.reminder.app.viewmodel.ReminderViewModel
 import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.RepeatPattern
 import com.reminder.app.data.RepeatType
-import com.reminder.app.data.AlertLevelOption
 import com.reminder.app.data.AlertLevel
-import com.reminder.app.data.AlertLevelConfig
 import com.reminder.app.data.AlertType
 import com.reminder.app.data.Reminder
 import com.reminder.app.data.TriggerPoint
@@ -296,21 +294,6 @@ fun updateContentDay(content: String, newDay: String): String {
     return updatedContent
 }
 
-// Helper function to load alert level config for custom profiles (avoiding naming conflicts)
-fun loadInputScreenAlertLevelConfig(context: android.content.Context): AlertLevelConfig {
-    return try {
-        val prefs = context.getSharedPreferences("alert_level_config", android.content.Context.MODE_PRIVATE)
-        val json = prefs.getString("alert_level_config", null)
-        if (json != null) {
-            AlertLevelConfig.Companion.fromJson(json)
-        } else {
-            AlertLevelConfig() // Default
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("InputScreen", "Error loading alert level config: ${e.message}")
-        AlertLevelConfig() // Default if parsing fails
-    }
-}
 
 // Compact Slider Date Picker Dialog Component with Smart Defaults
 @Composable
@@ -1067,7 +1050,6 @@ fun InputScreen(
     var alertConfig by remember { mutableStateOf(AlertConfig()) }
     var repeatPattern by remember { mutableStateOf(RepeatPattern()) }
     var alertLevel by remember { mutableStateOf(AlertLevel.LOW) }
-    var selectedCustomProfileName by remember { mutableStateOf<String?>(null) }
     
     // State for simplified components
     var selectedTriggerPoint by remember { mutableStateOf<TriggerPoint?>(TriggerPoint(TriggerType.AT_DUE_TIME)) }
@@ -1115,7 +1097,6 @@ fun InputScreen(
                         alertConfig = reminder.getAlertConfigData()
                         repeatPattern = reminder.getRepeatPatternData()
                         alertLevel = reminder.getAlertLevelEnum()
-                        selectedCustomProfileName = reminder.getCustomProfileNameFromField()
                         
                         // Initialize selectedTriggerPoint from reminder's trigger points
                         val triggerPoints = reminder.getTriggerPointsList()
@@ -1399,12 +1380,7 @@ fun InputScreen(
                                     triggerPoints = triggerPointsJson, // Store the selected trigger point
                                     alertConfig = alertConfigJson,
                                     repeatPattern = repeatPatternJson,
-                                    alertLevel = if (alertLevel == AlertLevel.CUSTOM) {
-                                        selectedCustomProfileName ?: "CUSTOM"
-                                    } else {
-                                        alertLevel.name
-                                    },
-                                    customProfileName = selectedCustomProfileName
+                                    alertLevel = alertLevel.name
                                 )
                                 
                                 if (reminderId != null) {
@@ -1478,20 +1454,13 @@ fun InputScreen(
                             Text(
                                 text = when (alertLevel) {
                                     AlertLevel.LOW -> "Low"
-                                    AlertLevel.MEDIUM -> "Medium"
                                     AlertLevel.HIGH -> "High"
                                     AlertLevel.URGENT -> "Urgent"
-                                    AlertLevel.CUSTOM -> {
-                                        // Use the selected custom profile name
-                                        selectedCustomProfileName ?: loadedReminder?.getCustomProfileNameFromField() ?: "Custom"
-                                    }
                                 },
                                 color = when (alertLevel) {
                                     AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
                                     AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
                                     AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                    AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                 }
                             )
                             Icon(
@@ -1499,10 +1468,8 @@ fun InputScreen(
                                 contentDescription = "Select Alert Level",
                                 tint = when (alertLevel) {
                                     AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
                                     AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
                                     AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                    AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                 }
                             )
                         }
@@ -1511,49 +1478,25 @@ fun InputScreen(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        // Get custom profiles from alert level config
-                        val context = LocalContext.current
-                        val alertLevelConfig = loadInputScreenAlertLevelConfig(context)
-                        val alertOptions = AlertLevelOption.getAllOptions(alertLevelConfig.customProfiles)
-                        
-                        // First add built-in options
-                        AlertLevelOption.getBuiltInOptions().forEach { option ->
+                        // Only show built-in alert levels
+                        listOf(
+                            AlertLevel.LOW to "Low",
+                            AlertLevel.HIGH to "High",
+                            AlertLevel.URGENT to "Urgent"
+                        ).forEach { (level, displayName) ->
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = option.displayName,
-                                        color = when (option.level) {
+                                        text = displayName,
+                                        color = when (level) {
                                             AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                            AlertLevel.MEDIUM -> MaterialTheme.colorScheme.primary
                                             AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
                                             AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                            AlertLevel.CUSTOM -> MaterialTheme.colorScheme.tertiary
                                         }
                                     )
                                 },
                                 onClick = {
-                                    alertLevel = option.level
-                                    selectedCustomProfileName = null
-                                    expanded = false
-                                }
-                            )
-                        }
-                        
-                        // Then add custom profile options
-                        AlertLevelOption.getCustomOptions(alertLevelConfig.customProfiles).forEach { option ->
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = option.displayName,
-                                        color = MaterialTheme.colorScheme.tertiary
-                                    )
-                                },
-                                onClick = {
-                                    // For custom profiles, we need to store the actual profile name
-                                    alertLevel = AlertLevel.CUSTOM
-                                    // Store custom profile name in a separate variable for later use
-                                    selectedCustomProfileName = option.customProfileName ?: option.displayName
-                                    android.util.Log.d("InputScreen", "Selected custom profile: ${selectedCustomProfileName}")
+                                    alertLevel = level
                                     expanded = false
                                 }
                             )

@@ -64,8 +64,7 @@ data class Reminder(
     val triggerPoints: String? = null, // JSON string of trigger points, defaults to AT_DUE_TIME if null
     val repeatPattern: String? = null, // JSON string for RepeatPattern data structure
     val alertConfig: String? = null, // JSON string for AlertConfig data structure
-    val alertLevel: String = "LOW", // Alert level: LOW, MEDIUM, HIGH, URGENT, or custom profile name
-    val customProfileName: String? = null // Store custom profile name separately for clarity
+    val alertLevel: String = "LOW" // Alert level: LOW, MEDIUM, HIGH, URGENT
 ) {
     fun getTriggerPointsList(): List<TriggerPoint> {
         return try {
@@ -97,28 +96,12 @@ data class Reminder(
         return try {
             when (alertLevel.uppercase()) {
                 "LOW" -> AlertLevel.LOW
-                "MEDIUM" -> AlertLevel.MEDIUM
                 "HIGH" -> AlertLevel.HIGH
                 "URGENT" -> AlertLevel.URGENT
-                "CUSTOM" -> AlertLevel.CUSTOM
-                else -> AlertLevel.CUSTOM // Treat unrecognized values as custom profiles
+                else -> AlertLevel.LOW // Fallback to LOW for unrecognized values
             }
         } catch (e: Exception) {
-            AlertLevel.CUSTOM // Fallback to CUSTOM for unrecognized values
-        }
-    }
-    // Getter for customProfileName field to avoid Room conflicts
-    @Ignore
-    fun getCustomProfileNameFromField(): String? {
-        // First check if we have a separate custom profile name field
-        if (!customProfileName.isNullOrBlank()) {
-            return customProfileName
-        }
-        
-        // Fallback to checking alertLevel field for backward compatibility
-        return when (alertLevel.uppercase()) {
-            "LOW", "MEDIUM", "HIGH", "URGENT", "CUSTOM" -> null
-            else -> alertLevel // Return actual custom profile name
+            AlertLevel.LOW // Fallback to LOW for unrecognized values
         }
     }
     

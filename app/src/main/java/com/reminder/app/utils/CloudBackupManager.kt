@@ -158,7 +158,6 @@ class CloudBackupManager(private val context: Context) {
                 put("repeatPattern", reminder.repeatPattern)
                 put("alertConfig", reminder.alertConfig)
                 put("alertLevel", reminder.alertLevel)
-                put("customProfileName", reminder.customProfileName)
                 put("createdAt", reminder.createdAt)
             }
             jsonArray.put(jsonObject)
@@ -199,7 +198,6 @@ class CloudBackupManager(private val context: Context) {
                 repeatPattern = if (jsonObject.has("repeatPattern")) jsonObject.optString("repeatPattern") else null,
                 alertConfig = if (jsonObject.has("alertConfig")) jsonObject.optString("alertConfig") else null,
                 alertLevel = jsonObject.optString("alertLevel", "LOW"),
-                customProfileName = if (jsonObject.has("customProfileName")) jsonObject.optString("customProfileName") else null,
                 createdAt = jsonObject.optLong("createdAt", System.currentTimeMillis())
             )
             reminders.add(reminder)
