@@ -86,6 +86,14 @@ object ScreenFlashManager {
         try {
             android.util.Log.d("ScreenFlashManager", "Triggering system-level screen flash")
             
+            // Check if we have overlay permission
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                if (!android.provider.Settings.canDrawOverlays(context)) {
+                    android.util.Log.w("ScreenFlashManager", "SYSTEM_ALERT_WINDOW permission not granted, skipping system flash")
+                    return
+                }
+            }
+            
             // Convert Compose Color to Android Color
             val androidColor = try {
                 android.graphics.Color.parseColor(
@@ -96,33 +104,7 @@ object ScreenFlashManager {
                 android.graphics.Color.RED // Fallback to red
             }
             
-            // Create a system overlay that will flash even when screen is off
-            val flashView = android.view.View(context).apply {
-                setBackgroundColor(androidColor)
-                layoutParams = android.view.WindowManager.LayoutParams(
-                    android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                    android.view.WindowManager.LayoutParams.MATCH_PARENT
-                ).apply {
-                    // Use TYPE_APPLICATION_OVERLAY for Android 8+ (more reliable for sleep mode)
-                    type = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                    } else {
-                        @Suppress("DEPRECATION")
-                        android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-                    }
-                    flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                            android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                            android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                            android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                            android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                            android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-                    alpha = 0.95f // High visibility
-                }
-            }
-            
-            // Get WindowManager and add the overlay
+            // Get WindowManager
             val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
             
             // Flash sequence
@@ -130,6 +112,32 @@ object ScreenFlashManager {
             fun flashIteration() {
                 if (currentFlash < flashCount) {
                     try {
+                        // Create a new flash view for each iteration to avoid "already added" error
+                        val flashView = android.view.View(context).apply {
+                            setBackgroundColor(androidColor)
+                            layoutParams = android.view.WindowManager.LayoutParams(
+                                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                                android.view.WindowManager.LayoutParams.MATCH_PARENT
+                            ).apply {
+                                // Use TYPE_APPLICATION_OVERLAY for Android 8+ (more reliable for sleep mode)
+                                type = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                                }
+                                flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                                        android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                                        android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                                        android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                                        android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                                alpha = 0.95f // High visibility
+                            }
+                        }
+                        
                         windowManager.addView(flashView, flashView.layoutParams)
                         android.util.Log.d("ScreenFlashManager", "System flash ON $currentFlash")
                         

@@ -3,7 +3,9 @@ package com.reminder.app
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -146,6 +148,18 @@ class MainActivity : ComponentActivity() {
         // Request exact alarm permission for Android 12+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             alarmPermissionLauncher.launch(Manifest.permission.SCHEDULE_EXACT_ALARM)
+        }
+        
+        // Request SYSTEM_ALERT_WINDOW permission for screen flash when phone is asleep
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                android.util.Log.d("MainActivity", "Requesting SYSTEM_ALERT_WINDOW permission")
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName"))
+                systemAlertWindowPermissionLauncher.launch(Manifest.permission.SYSTEM_ALERT_WINDOW)
+            } else {
+                android.util.Log.d("MainActivity", "SYSTEM_ALERT_WINDOW permission already granted")
+            }
         }
         
         // Handle voice actions from Google Assistant and keyboard input
