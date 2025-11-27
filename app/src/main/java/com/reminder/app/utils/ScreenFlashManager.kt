@@ -286,13 +286,33 @@ object ScreenFlashManager {
             }
             
             val ringtone = android.media.RingtoneManager.getRingtone(context, soundUri)
+            
+            // Set volume to maximum for the stream type to ensure it's audible
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            
+            // Get the appropriate stream type and set to maximum volume
+            val streamType = when (soundType) {
+                1 -> AudioManager.STREAM_ALARM
+                2 -> AudioManager.STREAM_RING
+                3 -> AudioManager.STREAM_NOTIFICATION
+                else -> AudioManager.STREAM_NOTIFICATION
+            }
+            
+            // Store original volume and set to maximum
+            val originalVolume = audioManager.getStreamVolume(streamType)
+            val maxVolume = audioManager.getStreamMaxVolume(streamType)
+            audioManager.setStreamVolume(streamType, maxVolume)
+            
+            android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType: ${soundUri}, volume set to $maxVolume/$maxVolume")
+            
             ringtone?.play()
             
-            android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType: ${soundUri}")
-            
-            // Stop sound after 1.5 seconds
+            // Stop sound after 1.5 seconds and restore original volume
             handler.postDelayed({
                 ringtone?.stop()
+                // Restore original volume after playing
+                audioManager.setStreamVolume(streamType, originalVolume)
+                android.util.Log.d("ScreenFlashManager", "Sound stopped, volume restored to $originalVolume/$maxVolume")
             }, 1500)
         } catch (e: Exception) {
             android.util.Log.e("ScreenFlashManager", "Sound failed: ${e.message}")
