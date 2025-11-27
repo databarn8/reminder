@@ -387,6 +387,8 @@ object ScreenFlashManager {
                     if (ringtone.isPlaying) {
                         ringtone.stop()
                         android.util.Log.d("ScreenFlashManager", "Ringtone STOPPED")
+                    } else {
+                        android.util.Log.d("ScreenFlashManager", "Ringtone was not playing")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("ScreenFlashManager", "Error stopping ringtone: ${e.message}")

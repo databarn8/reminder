@@ -45,6 +45,8 @@ import com.reminder.app.R
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.ExperimentalComposeUiApi
 
 class AlarmActivity : ComponentActivity() {
     
@@ -93,6 +95,8 @@ class AlarmActivity : ComponentActivity() {
                     if (ringtone.isPlaying) {
                         ringtone.stop()
                         android.util.Log.d("AlarmActivity", "Global: Ringtone STOPPED")
+                    } else {
+                        android.util.Log.d("AlarmActivity", "Global: Ringtone was not playing")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("AlarmActivity", "Global: Error stopping ringtone: ${e.message}")
@@ -560,6 +564,7 @@ class AlarmActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun AlarmScreen(
     title: String,
@@ -784,27 +789,16 @@ fun AlarmScreen(
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
-i }/}
             }
-i }/}
         }
-i }/}
-        } // Close transparent overlay Box
-i }/}
-    } // Close main Box
-i }/}
+        }
+    }
 }
-i }/}
 
-i }/}
 // Helper functions for alert level configuration
-i }/}
 private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
-i }/}
     val prefs = context.getSharedPreferences("alert_level_config", Context.MODE_PRIVATE)
-i }/}
     val json = prefs.getString("alert_level_config", null)
-i }/}
     return if (json != null) {
         try {
             AlertLevelConfig.Companion.fromJson(json)
