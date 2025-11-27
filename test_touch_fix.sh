@@ -4,9 +4,12 @@ echo "=== TESTING TOUCH FIX FOR SOUND STOP ==="
 echo ""
 
 # Check if device is connected
-adb devices | grep -v "List of devices" | grep -v "^$" > /dev/null
+ADB_PATH="/Users/yunhao/Library/Android/sdk/platform-tools/adb"
+$ADB_PATH devices | grep -v "List of devices" | grep -v "^$" > /dev/null
 if [ $? -ne 0 ]; then
     echo "ERROR: No device connected. Please connect your Android device."
+    echo "Current device status:"
+    $ADB_PATH devices
     exit 1
 fi
 
@@ -26,7 +29,7 @@ echo "BUILD SUCCESSFUL!"
 echo ""
 
 echo "2. Installing app..."
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+$ADB_PATH install -r app/build/outputs/apk/debug/app-debug.apk
 
 if [ $? -ne 0 ]; then
     echo "INSTALLATION FAILED! Please check errors above."
@@ -38,7 +41,7 @@ echo ""
 
 # Step 2: Clear logs and start monitoring
 echo "3. Clearing logs and starting monitoring..."
-adb logcat -c
+$ADB_PATH logcat -c
 
 echo ""
 echo "=== INSTRUCTIONS ==="
@@ -63,7 +66,7 @@ echo ""
 
 # Step 3: Trigger test alarm
 echo "4. Triggering test alarm now..."
-adb shell am broadcast -a com.reminder.app.TEST_SOUND_STOP
+$ADB_PATH shell am broadcast -a com.reminder.app.TEST_SOUND_STOP
 
 echo ""
 echo "=== TEST ALARM TRIGGERED ==="

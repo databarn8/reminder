@@ -97,12 +97,9 @@ class NotificationScheduler : BroadcastReceiver() {
         val reminder = reminderJson?.let { parseReminderFromJson(it) }
         launchAlarmActivity(context, title, content, reminderId, reminder)
         
-        // Show notification only if not in meeting mode
-        if (shouldShowNotification) {
-            showNotification(context, title, content, reminderId)
-        } else {
-            android.util.Log.d("NotificationScheduler", "Meeting mode enabled - skipping full notification")
-        }
+        // Don't show notification when launching AlarmActivity to prevent duplicate
+        // AlarmActivity will handle the alert and can show its own notification if needed
+        android.util.Log.d("NotificationScheduler", "Skipping notification - AlarmActivity will handle the alert")
         
         // Send email if reminder data is available
         reminderJson?.let { json ->

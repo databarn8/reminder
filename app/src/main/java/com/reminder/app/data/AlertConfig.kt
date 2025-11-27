@@ -43,7 +43,8 @@ data class AlertConfig(
                 sound = SoundConfig(
                     enabled = false,
                     type = SoundType.GENTLE,
-                    volume = 0.3f
+                    volume = 0.3f,
+                    repeatCount = 1 // Low alert: play once
                 )
             )
         }
@@ -59,7 +60,8 @@ data class AlertConfig(
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.CHIME,
-                    volume = 0.8f
+                    volume = 0.8f,
+                    repeatCount = 2 // Medium alert: play twice
                 )
             )
         }
@@ -75,7 +77,8 @@ data class AlertConfig(
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.ALARM,
-                    volume = 1.0f
+                    volume = 1.0f,
+                    repeatCount = 3 // High alert: play three times
                 )
             )
         }
@@ -91,7 +94,8 @@ data class AlertConfig(
                 sound = SoundConfig(
                     enabled = true,
                     type = SoundType.ALARM,
-                    volume = 1.0f
+                    volume = 1.0f,
+                    repeatCount = 5 // Urgent alert: play five times
                 )
             )
         }
@@ -201,6 +205,7 @@ data class SoundConfig(
     val enabled: Boolean = true,
     val type: SoundType = SoundType.CHIME,
     val volume: Float = 0.8f,
+    val repeatCount: Int = 2, // Number of times to repeat sound
     val customSoundUri: String? = null // Future feature
 )
 

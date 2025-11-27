@@ -223,9 +223,12 @@ class AlarmActivity : ComponentActivity() {
         }
         
         if (alertConfig.sound.enabled && meetingModeManager.shouldEnableSound()) {
-            // Get sound times or default
-            val prefs = this.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
-            val soundTimes = prefs.getInt("sound_duration_seconds", meetingModeManager.getSoundDurationSeconds())
+            // Get sound times from alert level config, not global preference
+            val soundTimes = when (alertLevel) {
+                AlertLevel.LOW -> alertConfig.sound.repeatCount
+                AlertLevel.HIGH -> alertConfig.sound.repeatCount
+                AlertLevel.URGENT -> alertConfig.sound.repeatCount
+            }
             playAlarmSound(alertConfig.sound, alertLevel, soundTimes)
         }
         
