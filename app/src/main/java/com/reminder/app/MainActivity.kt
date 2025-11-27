@@ -9,7 +9,6 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,6 +33,8 @@ import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.utils.EnhancedEmailService
 import com.reminder.app.utils.GoogleSignInHelper
 import com.reminder.app.utils.NotificationScheduler
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.ActivityResultLauncher
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.utils.ScreenFlashOverlay
 import com.reminder.app.utils.SpeechManager
@@ -46,7 +47,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var speechManager: SpeechManager
     private lateinit var emailService: EnhancedEmailService
     private lateinit var emailPreferencesManager: EmailPreferencesManager
-    // private lateinit var googleSignInHelper: GoogleSignInHelper
+    private lateinit var googleSignInHelper: GoogleSignInHelper
+    private lateinit var signInLauncher: ActivityResultLauncher<Intent>
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -115,12 +117,13 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    // private val googleSignInLauncher = registerForActivityResult(
-    //     ActivityResultContracts.StartActivityForResult()
-    // ) { result ->
-    //         val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
-    //         googleSignInHelper.handleSignInResult(task)
-    //     }
+    // Initialize signInLauncher in onCreate
+    private fun initSignInLauncher() {
+        signInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            googleSignInHelper.handleSignInResult(task)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,7 +132,8 @@ class MainActivity : ComponentActivity() {
         speechManager.setActivity(this)
         emailService = EnhancedEmailService()
         emailPreferencesManager = EmailPreferencesManager(this)
-        // googleSignInHelper = GoogleSignInHelper(this)
+        googleSignInHelper = GoogleSignInHelper(this)
+        initSignInLauncher()
         
         // Check and request necessary permissions
         if (!speechManager.hasAudioPermission()) {
@@ -310,7 +314,8 @@ class MainActivity : ComponentActivity() {
                                 viewModel = viewModel,
                                 onBack = { navController.popBackStack() },
                                 onSignIn = {
-                                    // Google Sign In temporarily disabled
+                                    // Launch Google Sign In
+                                    googleSignInHelper.signIn(this@MainActivity, signInLauncher)
                                 }
                             )
                         }

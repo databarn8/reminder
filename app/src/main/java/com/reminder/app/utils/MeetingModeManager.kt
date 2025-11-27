@@ -16,8 +16,8 @@ class MeetingModeManager private constructor(private val context: Context) {
     companion object {
         private const val PREFS_NAME = "meeting_mode_prefs"
         private const val KEY_MEETING_MODE_ENABLED = "meeting_mode_enabled"
-        private const val KEY_SOUND_DURATION_SECONDS = "sound_duration_seconds"
-        private const val DEFAULT_SOUND_DURATION = 3 // 3 seconds default
+        private const val KEY_SOUND_TIMES = "sound_duration_seconds" // Keep same key for backward compatibility
+        private const val DEFAULT_SOUND_TIMES = 2 // 2 times default
         
         @Volatile
         private var INSTANCE: MeetingModeManager? = null
@@ -59,7 +59,7 @@ class MeetingModeManager private constructor(private val context: Context) {
      * Get the sound duration in seconds for meeting mode
      */
     fun getSoundDurationSeconds(): Int {
-        return sharedPreferences.getInt(KEY_SOUND_DURATION_SECONDS, DEFAULT_SOUND_DURATION)
+        return sharedPreferences.getInt(KEY_SOUND_TIMES, DEFAULT_SOUND_TIMES)
     }
     
     /**
@@ -67,7 +67,7 @@ class MeetingModeManager private constructor(private val context: Context) {
      */
     fun setSoundDurationSeconds(duration: Int) {
         sharedPreferences.edit()
-            .putInt(KEY_SOUND_DURATION_SECONDS, duration)
+            .putInt(KEY_SOUND_TIMES, duration)
             .apply()
     }
     

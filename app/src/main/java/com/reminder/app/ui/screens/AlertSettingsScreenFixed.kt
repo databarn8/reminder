@@ -500,20 +500,21 @@ fun MeetingModeSection(
                 )
             }
             
-            if (meetingModeEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "When in meeting mode: only vibration works, no flash or sound. In normal mode: flash and sound work.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            // Only show sound times control when meeting mode is OFF
+            if (!meetingModeEnabled) {
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                // Sound Times Control
                 Text(
-                    text = "When in meeting mode: only vibration works, no flash or sound. In normal mode: flash and sound work.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Sound Duration Control
-                Text(
-                    text = "Sound Duration: ${soundDuration}s",
+                    text = "Sound Times: ${soundDuration}x",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -541,14 +542,14 @@ fun MeetingModeSection(
                     }
                     
                     Text(
-                        text = "${soundDuration}s",
+                        text = "${soundDuration}x",
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     
                     Button(
                         onClick = {
-                            if (soundDuration < 30) {
+                            if (soundDuration < 10) {
                                 onSoundDurationChange(soundDuration + 1)
                             }
                         },
@@ -565,7 +566,7 @@ fun MeetingModeSection(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Control how long alert sounds play (1-30 seconds)",
+                    text = "Control how many times alert sounds play (1-10 times)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

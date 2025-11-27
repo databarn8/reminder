@@ -27,6 +27,11 @@ object ScreenFlashManager {
     private var isFlashing = false
     private val handler = Handler(Looper.getMainLooper())
     
+    // Track active sounds for proper cleanup
+    private var activeRingtone: android.media.Ringtone? = null
+    private var activeToneGenerator: android.media.ToneGenerator? = null
+    private var soundStopRunnable: Runnable? = null
+    
     fun triggerFlash(
         context: Context,
         flashColor: Color = Color.Red,
@@ -277,6 +282,9 @@ object ScreenFlashManager {
         try {
             android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType")
             
+            // Stop any existing sound first
+            stopAllSounds()
+            
             // Get different notification sounds based on type
             val soundUri = when (soundType) {
                 1 -> android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
@@ -286,6 +294,7 @@ object ScreenFlashManager {
             }
             
             val ringtone = android.media.RingtoneManager.getRingtone(context, soundUri)
+            activeRingtone = ringtone
             
             // Set volume to maximum for the stream type to ensure it's audible
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -308,12 +317,14 @@ object ScreenFlashManager {
             ringtone?.play()
             
             // Stop sound after 1.5 seconds and restore original volume
-            handler.postDelayed({
+            soundStopRunnable = Runnable {
                 ringtone?.stop()
+                activeRingtone = null
                 // Restore original volume after playing
                 audioManager.setStreamVolume(streamType, originalVolume, 0)
                 android.util.Log.d("ScreenFlashManager", "Sound stopped, volume restored to $originalVolume/$maxVolume")
-            }, 1500)
+            }
+            handler.postDelayed(soundStopRunnable!!, 1500)
         } catch (e: Exception) {
             android.util.Log.e("ScreenFlashManager", "Sound failed: ${e.message}")
         }
@@ -327,8 +338,12 @@ object ScreenFlashManager {
                 return
             }
             
+            // Stop any existing tone generator first
+            activeToneGenerator?.release()
+            
             // Use system beep sound (different from default notification)
             val toneGenerator = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
+            activeToneGenerator = toneGenerator
             toneGenerator.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 500)
             
             android.util.Log.d("ScreenFlashManager", "Playing system beep sound")
@@ -349,6 +364,48 @@ object ScreenFlashManager {
         } catch (e: Exception) {
             android.util.Log.w("ScreenFlashManager", "Could not check audio settings: ${e.message}")
             true // Default to enabled if we can't check
+        }
+    }
+    
+    /**
+     * Stop all sounds played by ScreenFlashManager
+     * This method is called by AlarmActivity to coordinate sound stopping
+     */
+    fun stopAllSounds() {
+        try {
+            android.util.Log.d("ScreenFlashManager", "=== STOPPING ALL SCREEN FLASH MANAGER SOUNDS ===")
+            
+            // Cancel any pending sound stop runnable
+            soundStopRunnable?.let { runnable ->
+                handler.removeCallbacks(runnable)
+                soundStopRunnable = null
+            }
+            
+            // Stop active ringtone
+            activeRingtone?.let { ringtone ->
+                try {
+                    ringtone.stop()
+                    android.util.Log.d("ScreenFlashManager", "Ringtone STOPPED")
+                } catch (e: Exception) {
+                    android.util.Log.e("ScreenFlashManager", "Error stopping ringtone: ${e.message}")
+                }
+            }
+            activeRingtone = null
+            
+            // Stop active tone generator
+            activeToneGenerator?.let { toneGenerator ->
+                try {
+                    toneGenerator.release()
+                    android.util.Log.d("ScreenFlashManager", "ToneGenerator STOPPED")
+                } catch (e: Exception) {
+                    android.util.Log.e("ScreenFlashManager", "Error stopping tone generator: ${e.message}")
+                }
+            }
+            activeToneGenerator = null
+            
+            android.util.Log.d("ScreenFlashManager", "=== ALL SCREEN FLASH MANAGER SOUNDS STOPPED ===")
+        } catch (e: Exception) {
+            android.util.Log.e("ScreenFlashManager", "Error stopping all sounds: ${e.message}")
         }
     }
 }

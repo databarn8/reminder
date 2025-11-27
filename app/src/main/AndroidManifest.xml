@@ -117,6 +117,17 @@
                 <action android:name="android.intent.action.MY_PACKAGE_RESTARTED" />
             </intent-filter>
         </receiver>
+        
+        <!-- Debug receiver for testing sound stop functionality -->
+        <receiver
+            android:name=".utils.AlarmDebugReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.reminder.app.TEST_SOUND_STOP" />
+                <action android:name="com.reminder.app.DEBUG_SOUND_STOP" />
+            </intent-filter>
+        </receiver>
             
         <!-- FileProvider for email attachments -->
         <provider

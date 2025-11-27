@@ -224,6 +224,9 @@ class SmartVoiceProcessor {
         cleaned = cleaned.replace(Regex("\\b(at|on|in|for|to|the)\\b"), "").trim()
         cleaned = cleaned.replace(Regex("\\s+"), " ")
         
+        // Apply 100-word limit for note-taking
+        cleaned = truncateToFirst100Words(cleaned)
+        
         return cleaned.ifBlank { "Reminder" }
     }
     
@@ -269,6 +272,18 @@ class SmartVoiceProcessor {
             confidence >= 0.8f -> "High confidence - AI understood well"
             confidence >= 0.5f -> "Medium confidence - AI understood most"
             else -> "Low confidence - Please check details"
+        }
+    }
+    
+    /**
+     * Truncate text to first 100 words for note-taking
+     */
+    private fun truncateToFirst100Words(text: String): String {
+        val words = text.split(" ").take(100)
+        return if (words.size < 100) {
+            text
+        } else {
+            "${words.joinToString(" ")}..."
         }
     }
 }

@@ -2,6 +2,7 @@ package com.reminder.app.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -35,11 +36,15 @@ import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.VibrationConfig
 import com.reminder.app.data.VibrationPattern
 import com.reminder.app.data.SoundConfig
+import com.reminder.app.data.SoundType
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.data.Reminder
 import com.reminder.app.utils.NotificationScheduler
+import com.reminder.app.utils.MeetingModeManager
 import com.reminder.app.R
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 
 class AlarmActivity : ComponentActivity() {
     
@@ -50,6 +55,76 @@ class AlarmActivity : ComponentActivity() {
     private val maxAlarms = 5
     private var isReleased = false
     private var isActivityInitialized = false
+    private var shouldStopSound = false
+    private var currentRingtone: android.media.Ringtone? = null
+    private var soundPlaybackRunnable: Runnable? = null
+    
+    // Add static flag to coordinate sound stopping across instances
+    companion object {
+        private var globalSoundStopRequested = false
+        private var activeMediaPlayer: MediaPlayer? = null
+        private var activeRingtone: android.media.Ringtone? = null
+        private var activeHandler: Handler? = null
+        private var activeSoundRunnable: Runnable? = null
+        
+        // Global sound stop method that can be called from anywhere
+        fun stopAllSoundsGlobally() {
+            android.util.Log.d("AlarmActivity", "=== GLOBAL SOUND STOP REQUESTED ===")
+            globalSoundStopRequested = true
+            
+            // Stop active media player
+            activeMediaPlayer?.let { player ->
+                try {
+                    if (player.isPlaying) {
+                        player.stop()
+                        android.util.Log.d("AlarmActivity", "Global: Media player STOPPED")
+                    }
+                    player.release()
+                    android.util.Log.d("AlarmActivity", "Global: Media player RELEASED")
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmActivity", "Global: Error stopping media player: ${e.message}")
+                }
+            }
+            activeMediaPlayer = null
+            
+            // Stop active ringtone
+            activeRingtone?.let { ringtone ->
+                try {
+                    if (ringtone.isPlaying) {
+                        ringtone.stop()
+                        android.util.Log.d("AlarmActivity", "Global: Ringtone STOPPED")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmActivity", "Global: Error stopping ringtone: ${e.message}")
+                }
+            }
+            activeRingtone = null
+            
+            // Clear all pending callbacks
+            activeHandler?.let { handler ->
+                handler.removeCallbacksAndMessages(null)
+                android.util.Log.d("AlarmActivity", "Global: All callbacks cleared")
+            }
+            activeHandler = null
+            activeSoundRunnable = null
+            
+            // Also stop ScreenFlashManager sounds
+            try {
+                ScreenFlashManager.stopAllSounds()
+                android.util.Log.d("AlarmActivity", "Global: ScreenFlashManager sounds stopped")
+            } catch (e: Exception) {
+                android.util.Log.e("AlarmActivity", "Global: Error stopping ScreenFlashManager sounds: ${e.message}")
+            }
+            
+            android.util.Log.d("AlarmActivity", "=== GLOBAL SOUND STOP COMPLETED ===")
+        }
+        
+        // Reset global state when new alarm starts
+        fun resetGlobalSoundState() {
+            globalSoundStopRequested = false
+            android.util.Log.d("AlarmActivity", "Global sound state reset")
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,22 +137,36 @@ class AlarmActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
         
-        val title = intent.getStringExtra("alarm_title") ?: "Reminder"
-        val content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
-        val reminderId = intent.getIntExtra("reminder_id", -1)
+        var title = intent.getStringExtra("alarm_title") ?: "Reminder"
+        var content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
         val alertLevelString = intent.getStringExtra("alert_level") ?: "LOW"
-        val customProfileName = intent.getStringExtra("custom_profile_name")
         val alertLevel = try {
             AlertLevel.valueOf(alertLevelString)
         } catch (e: Exception) {
             AlertLevel.LOW
         }
         
-        // Load alert level config to get custom profile settings if needed
+        // Check if this is a test sound stop request
+        val isTestSoundStop = intent.getBooleanExtra("TEST_SOUND_STOP", false)
+        if (isTestSoundStop) {
+            android.util.Log.d("AlarmActivity", "=== TEST SOUND STOP REQUEST DETECTED ===")
+            title = "DEBUG TEST"
+            content = "Testing sound stop functionality"
+        }
+        
+        // Check meeting mode and adjust content
+        val meetingModeManager = MeetingModeManager.getInstance(this)
+        val isMeetingMode = meetingModeManager.isMeetingModeEnabled()
+        
+        // Always truncate to first 100 words for flash and notification (enhanced for note-taking)
+        content = truncateToFirst100Words(content)
+        android.util.Log.d("AlarmActivity", "Content truncated to first 100 words: $content")
+        
+        // Load alert level config
         val alertLevelConfig = loadAlertLevelConfig(this)
         
-        // Get alert config (already loaded above)
-        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel, customProfileName)
+        // Get alert config for the alert level
+        val alertConfig = getAlertConfigForLevel(alertLevelConfig, alertLevel)
         
         handler = Handler(Looper.getMainLooper())
         
@@ -89,15 +178,24 @@ class AlarmActivity : ComponentActivity() {
                     alertLevel = alertLevel,
                     alertConfig = alertConfig,
                     onDismiss = { dismissAlarm() },
+                    onStopSound = {
+                        if (isTestSoundStop) {
+                            android.util.Log.d("AlarmActivity", "=== TEST STOP SOUND TRIGGERED FROM UI ===")
+                        }
+                        stopAlarmSoundOnly()
+                    },
                     alarmCount = alarmCount,
-                    maxAlarms = maxAlarms,
-                    customProfileName = customProfileName
+                    maxAlarms = maxAlarms
                 )
             }
         }
         
         // Start repeating alarm
-        startRepeatingAlarm(alertConfig, alertLevel)
+        if (!isTestSoundStop) {
+            startRepeatingAlarm(alertConfig, alertLevel)
+        } else {
+            android.util.Log.d("AlarmActivity", "=== SKIPPING ALARM START FOR TEST ===")
+        }
         
         // REMOVED: Don't schedule repeat alarms from AlarmActivity
         // This was causing the 4x repetition issue
@@ -108,17 +206,40 @@ class AlarmActivity : ComponentActivity() {
     private fun startRepeatingAlarm(alertConfig: AlertConfig, alertLevel: AlertLevel) {
         if (isAlarmDismissed) return
         
-        // Apply alert configuration once for this reminder
-        if (alertConfig.vibration.enabled) {
+        // Reset global sound state for new alarm
+        resetGlobalSoundState()
+        
+        // Check meeting mode settings
+        val meetingModeManager = MeetingModeManager.getInstance(this)
+        val isMeetingMode = meetingModeManager.isMeetingModeEnabled()
+        
+        // Apply alert configuration based on meeting mode
+        if (alertConfig.vibration.enabled && meetingModeManager.shouldEnableVibration()) {
             triggerVibration(alertConfig.vibration)
         }
         
-        if (alertConfig.sound.enabled) {
-            playAlarmSound(alertConfig.sound, alertLevel)
+        if (alertConfig.sound.enabled && meetingModeManager.shouldEnableSound()) {
+            // Get sound times or default
+            val prefs = this.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
+            val soundTimes = prefs.getInt("sound_duration_seconds", meetingModeManager.getSoundDurationSeconds())
+            playAlarmSound(alertConfig.sound, alertLevel, soundTimes)
         }
         
-        // Always trigger screen flash - it's a key visual alert feature
-        triggerScreenFlash(alertLevel)
+        // Only trigger screen flash if not in meeting mode
+        if (meetingModeManager.shouldEnableFlash()) {
+            triggerScreenFlash(alertLevel)
+        }
+        
+        // Always cancel notification to avoid confusion when alarm is active
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.cancel(0) // Use 0 as default notification ID since we don't need specific reminder ID
+            android.util.Log.d("AlarmActivity", "Cancelled notification to avoid confusion with alarm screen")
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error cancelling notification: ${e.message}")
+        }
+        
+        android.util.Log.d("AlarmActivity", "Alarm started - Meeting mode: $isMeetingMode")
         
         alarmCount = 1 // Set to 1 since this is a single alarm for this reminder
         
@@ -153,10 +274,8 @@ class AlarmActivity : ComponentActivity() {
             // Use different colors based on alert level
             val flashColor = when (alertLevel) {
                 AlertLevel.LOW -> androidx.compose.ui.graphics.Color(0xFFFFFF00) // Yellow
-                AlertLevel.MEDIUM -> androidx.compose.ui.graphics.Color(0xFFFF8C00) // Dark Orange
-                AlertLevel.HIGH -> androidx.compose.ui.graphics.Color(0xFFFF0000) // Red
+                AlertLevel.HIGH -> androidx.compose.ui.graphics.Color(0xFFFF8C00) // Dark Orange
                 AlertLevel.URGENT -> androidx.compose.ui.graphics.Color(0xFF8B0000) // Dark Red
-                AlertLevel.CUSTOM -> androidx.compose.ui.graphics.Color(0xFF9C27B0) // Purple
             }
             
             android.util.Log.d("AlarmActivity", "Triggering flash for $alertLevel with color: $flashColor")
@@ -173,36 +292,72 @@ class AlarmActivity : ComponentActivity() {
         }
     }
     
-    private fun playAlarmSound(soundConfig: SoundConfig, alertLevel: AlertLevel) {
+    private fun playAlarmSound(soundConfig: SoundConfig, alertLevel: AlertLevel, soundTimes: Int = 2) {
         try {
-            // Stop any existing sound
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
-            isReleased = true
-            
-            // Get custom sound resource based on alert level
-            val soundResourceId = when (alertLevel) {
-                AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
-                AlertLevel.MEDIUM -> com.reminder.app.R.raw.soft_bell
-                AlertLevel.HIGH -> com.reminder.app.R.raw.notification_chime
-                AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
-                AlertLevel.CUSTOM -> com.reminder.app.R.raw.soft_bell
+            // Check if global stop was requested
+            if (globalSoundStopRequested) {
+                android.util.Log.d("AlarmActivity", "Global sound stop requested, skipping sound playback")
+                return
             }
             
-            // Try to use custom sound first
-            val alarmUri = try {
-                android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
-            } catch (e: Exception) {
-                android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
-                // Fallback to system sound types
-                val soundType = when (alertLevel) {
-                    AlertLevel.LOW -> RingtoneManager.TYPE_NOTIFICATION
-                    AlertLevel.MEDIUM -> RingtoneManager.TYPE_RINGTONE
-                    AlertLevel.HIGH -> RingtoneManager.TYPE_ALARM
-                    AlertLevel.URGENT -> RingtoneManager.TYPE_ALARM
-                    AlertLevel.CUSTOM -> RingtoneManager.TYPE_RINGTONE
+            // Stop any existing sound globally first
+            stopAllSoundsGlobally()
+            
+            // First try to use the configured sound type
+            val alarmUri = if (soundConfig.enabled) {
+                when (soundConfig.type) {
+                    SoundType.CHIME -> {
+                        // Try to use custom chime sound
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${com.reminder.app.R.raw.gentle_chime}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load chime sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
+                    SoundType.GENTLE -> {
+                        // Try to use gentle sound
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${com.reminder.app.R.raw.soft_bell}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load gentle sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
+                    SoundType.ALARM -> {
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    }
+                    SoundType.URGENT -> {
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    }
+                    else -> {
+                        // Fallback to alert level based sounds
+                        val soundResourceId = when (alertLevel) {
+                            AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
+                            AlertLevel.HIGH -> com.reminder.app.R.raw.soft_bell
+                            AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
+                        }
+                        try {
+                            android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
+                            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                        }
+                    }
                 }
-                RingtoneManager.getDefaultUri(soundType) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            } else {
+                // Sound disabled, use fallback based on alert level
+                val soundResourceId = when (alertLevel) {
+                    AlertLevel.LOW -> com.reminder.app.R.raw.gentle_chime
+                    AlertLevel.HIGH -> com.reminder.app.R.raw.soft_bell
+                    AlertLevel.URGENT -> com.reminder.app.R.raw.urgent_alarm
+                }
+                try {
+                    android.net.Uri.parse("android.resource://${packageName}/${soundResourceId}")
+                } catch (e: Exception) {
+                    android.util.Log.e("AlarmActivity", "Could not load custom sound: ${e.message}")
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                }
             }
             
             mediaPlayer = MediaPlayer().apply {
@@ -213,55 +368,161 @@ class AlarmActivity : ComponentActivity() {
                 prepare()
                 start()
                 
+                // Store in global variables
+                activeMediaPlayer = this
+                activeHandler = handler
+                
                 android.util.Log.d("AlarmActivity", "Playing custom sound for $alertLevel: $alarmUri")
                 
-                // Auto-stop after 10 seconds
-                handler?.postDelayed({
-                    stop()
-                    release()
-                    isReleased = true
-                }, 10000)
+                // Play sound multiple times based on soundTimes setting
+                playSoundMultipleTimes(this@AlarmActivity, alarmUri, soundConfig.volume, soundTimes)
             }
         } catch (e: Exception) {
             // Fallback to system sound
             try {
                 val ringtone = RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))
+                currentRingtone = ringtone
+                activeRingtone = ringtone  // Store in global variable
                 ringtone?.play()
                 
                 android.util.Log.e("AlarmActivity", "Fallback to system alarm sound: ${e.message}")
                 
-                handler?.postDelayed({
-                    ringtone?.stop()
-                }, 10000)
+                // Play ringtone multiple times
+                playRingtoneMultipleTimes(ringtone, soundTimes)
             } catch (e2: Exception) {
                 android.util.Log.e("AlarmActivity", "Could not play alarm sound: ${e2.message}")
             }
         }
     }
     
+    private fun playSoundMultipleTimes(context: Context, uri: android.net.Uri, volume: Float, times: Int) {
+        try {
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(context, uri)
+                isLooping = false
+                setAudioStreamType(AudioManager.STREAM_ALARM)
+                setVolume(volume, volume)
+                prepare()
+                
+                // Store in global variables
+                activeMediaPlayer = this
+                activeHandler = handler
+                
+                var currentPlayCount = 0
+                
+                setOnCompletionListener {
+                    // Check if global stop was requested
+                    if (globalSoundStopRequested) {
+                        android.util.Log.d("AlarmActivity", "Global stop requested, not replaying sound")
+                        release()
+                        isReleased = true
+                        return@setOnCompletionListener
+                    }
+                    
+                    currentPlayCount++
+                    if (currentPlayCount < times) {
+                        // Play again after a short delay
+                        val runnable = Runnable {
+                            try {
+                                if (!globalSoundStopRequested) {
+                                    start()
+                                    android.util.Log.d("AlarmActivity", "Replaying sound, play ${currentPlayCount + 1}/$times")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("AlarmActivity", "Error replaying sound: ${e.message}")
+                            }
+                        }
+                        activeSoundRunnable = runnable
+                        handler?.postDelayed(runnable, 1000) // 1 second delay between plays
+                    } else {
+                        // All plays completed
+                        release()
+                        isReleased = true
+                        activeMediaPlayer = null
+                        android.util.Log.d("AlarmActivity", "All sound plays completed")
+                    }
+                }
+                
+                start()
+                android.util.Log.d("AlarmActivity", "Playing sound $times times, current play: ${currentPlayCount + 1}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error playing sound multiple times: ${e.message}")
+        }
+    }
+    
+    private fun playRingtoneMultipleTimes(ringtone: android.media.Ringtone?, times: Int) {
+        try {
+            var currentPlayCount = 0
+            
+            fun playNext() {
+                // Check if global stop was requested
+                if (globalSoundStopRequested) {
+                    android.util.Log.d("AlarmActivity", "Global stop requested, not replaying ringtone")
+                    return
+                }
+                
+                if (currentPlayCount < times && ringtone != null && !shouldStopSound) {
+                    currentPlayCount++
+                    ringtone.play()
+                    android.util.Log.d("AlarmActivity", "Playing ringtone $times times, current play: $currentPlayCount")
+                    
+                    // Schedule next play after current sound finishes (approximate)
+                    val runnable = Runnable { playNext() }
+                    soundPlaybackRunnable = runnable
+                    activeSoundRunnable = runnable
+                    handler?.postDelayed(runnable, 2000) // 2 seconds between plays
+                }
+            }
+            
+            playNext()
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error playing ringtone multiple times: ${e.message}")
+        }
+    }
+    
+    private fun truncateToFirst100Words(text: String): String {
+        val words = text.split(" ").take(100)
+        return if (words.size < 100) {
+            text
+        } else {
+            "${words.joinToString(" ")}..."
+        }
+    }
+    
+    private fun stopAlarmSoundOnly() {
+        try {
+            android.util.Log.d("AlarmActivity", "=== STOP SOUND CALLED ===")
+            android.util.Log.d("AlarmActivity", "Stopping alarm sound only")
+            
+            // Use global sound stop method for comprehensive stopping
+            stopAllSoundsGlobally()
+            
+            // Also clear local references
+            soundPlaybackRunnable = null
+            mediaPlayer = null
+            currentRingtone = null
+            isReleased = true
+            
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error stopping alarm sound: ${e.message}")
+        }
+        
+        android.util.Log.d("AlarmActivity", "=== SOUND STOP COMPLETED ===")
+        android.util.Log.d("AlarmActivity", "Final state - mediaPlayer: ${mediaPlayer != null}, ringtone: ${currentRingtone != null}")
+    }
+    
     private fun dismissAlarm() {
         isAlarmDismissed = true
+        shouldStopSound = true
         
         // Clear the alarm handling state
-        val prefs = getSharedPreferences("alarm_activity_state", Context.MODE_PRIVATE)
+        val prefs = this.getSharedPreferences("alarm_activity_state", Context.MODE_PRIVATE)
         prefs.edit().remove("current_handling_id").apply()
         
-        // Stop sound
-        try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
-        } catch (e: Exception) {
-            android.util.Log.e("AlarmActivity", "Error stopping media player: ${e.message}")
-        }
-        mediaPlayer = null
-        isReleased = true
-        
-        // Cancel any pending alarms
-        try {
-            handler?.removeCallbacksAndMessages(null)
-        } catch (e: Exception) {
-            android.util.Log.e("AlarmActivity", "Error removing callbacks: ${e.message}")
-        }
+        // Stop sound using the same method as stopAlarmSoundOnly
+        stopAlarmSoundOnly()
         
         // Finish activity
         finish()
@@ -269,13 +530,20 @@ class AlarmActivity : ComponentActivity() {
     
     override fun onDestroy() {
         super.onDestroy()
-        dismissAlarm()
+        // Stop all sounds when activity is destroyed
+        stopAllSoundsGlobally()
     }
     
     
     override fun onBackPressed() {
         // Handle back button as dismiss
         dismissAlarm()
+    }
+    
+    // Test function for adb debugging
+    private fun testSoundStop() {
+        android.util.Log.d("AlarmActivity", "=== TEST SOUND STOP TRIGGERED ===")
+        stopAlarmSoundOnly()
     }
 }
 
@@ -286,11 +554,19 @@ fun AlarmScreen(
     alertLevel: AlertLevel,
     alertConfig: AlertConfig,
     onDismiss: () -> Unit,
+    onStopSound: () -> Unit,
     alarmCount: Int,
-    maxAlarms: Int,
-    customProfileName: String? = null
+    maxAlarms: Int
 ) {
+    val context = LocalContext.current
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    
+    // Load sound times from preferences
+    var soundTimes by remember { mutableStateOf(2) }
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
+        soundTimes = prefs.getInt("sound_duration_seconds", 2)
+    }
     
     // Update time every second
     LaunchedEffect(Unit) {
@@ -304,23 +580,37 @@ fun AlarmScreen(
     
     val backgroundColor = when (alertLevel) {
         AlertLevel.LOW -> Color(0xFFFFA500) // Orange
-        AlertLevel.MEDIUM -> Color(0xFFFF6B35) // Dark Orange
-        AlertLevel.HIGH -> Color(0xFFFF0000) // Red
+        AlertLevel.HIGH -> Color(0xFFFF6B35) // Dark Orange
         AlertLevel.URGENT -> Color(0xFF8B0000) // Dark Red
-        AlertLevel.CUSTOM -> Color(0xFF9C27B0) // Purple
     }
     
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
-            .padding(24.dp),
+            .padding(24.dp)
+            .pointerInteropFilter { motionEvent ->
+                when (motionEvent.action) {
+                    android.view.MotionEvent.ACTION_DOWN,
+                    android.view.MotionEvent.ACTION_MOVE,
+                    android.view.MotionEvent.ACTION_UP -> {
+                        android.util.Log.d("AlarmActivity", "=== SCREEN TOUCHED (POINTER INTEROP) - CALLING STOP SOUND ===")
+                        onStopSound()
+                        true // Consume the event
+                    }
+                    else -> false
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
+                .clip(RoundedCornerShape(16.dp))
+                .clickable {
+                    android.util.Log.d("AlarmActivity", "=== CARD CLICKED - CALLING STOP SOUND ===")
+                    onStopSound()
+                },
             colors = CardDefaults.cardColors(
                 containerColor = Color.White
             ),
@@ -351,11 +641,7 @@ fun AlarmScreen(
                         fontSize = 48.sp
                     )
                     Text(
-                        text = if (alertLevel == AlertLevel.CUSTOM && !customProfileName.isNullOrBlank()) {
-                            "$customProfileName Alert"
-                        } else {
-                            "$alertLevel Level Alert"
-                        },
+                        text = "$alertLevel Level Alert",
                         fontSize = 16.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Medium
@@ -404,6 +690,66 @@ fun AlarmScreen(
                     )
                 }
                 
+                // Stop Sound Only button (for when user wants to stop sound but keep alarm visible)
+                Button(
+                    onClick = {
+                        // Just stop the sound without dismissing the alarm
+                        android.util.Log.d("AlarmActivity", "=== STOP SOUND BUTTON PRESSED - CALLING STOP SOUND ===")
+                        onStopSound()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp), // Made button taller for easier tapping
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Black, // Changed to black for high contrast
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp) // Added elevation for better visibility
+                ) {
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = "Stop Sound",
+                        modifier = Modifier.size(24.dp) // Made icon larger
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "STOP SOUND",
+                        fontSize = 18.sp, // Made text larger
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                
+                // Sound Duration Display
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Sound Times: ${soundTimes}x",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = "Configure times in Alert Settings (only when meeting mode is OFF)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
                 // Instructions
                 Text(
                     text = "Tap DISMISS to stop this reminder alarm",
@@ -412,15 +758,27 @@ fun AlarmScreen(
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
+i }/}
             }
+i }/}
         }
-    }
+i }/}
+        } // Close transparent overlay Box
+i }/}
+    } // Close main Box
+i }/}
 }
+i }/}
 
+i }/}
 // Helper functions for alert level configuration
+i }/}
 private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
+i }/}
     val prefs = context.getSharedPreferences("alert_level_config", Context.MODE_PRIVATE)
+i }/}
     val json = prefs.getString("alert_level_config", null)
+i }/}
     return if (json != null) {
         try {
             AlertLevelConfig.Companion.fromJson(json)
@@ -432,19 +790,10 @@ private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
     }
 }
 
-private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel, customProfileName: String? = null): AlertConfig {
+private fun getAlertConfigForLevel(levelConfig: AlertLevelConfig, level: AlertLevel): AlertConfig {
     return when (level) {
         AlertLevel.LOW -> levelConfig.lowLevel
-        AlertLevel.MEDIUM -> levelConfig.mediumLevel
         AlertLevel.HIGH -> levelConfig.highLevel
         AlertLevel.URGENT -> levelConfig.urgentLevel
-        AlertLevel.CUSTOM -> {
-            // Use the specific custom profile name if provided, otherwise fall back to first available
-            if (!customProfileName.isNullOrBlank()) {
-                levelConfig.customProfiles[customProfileName] ?: AlertConfig.Companion.getMediumLevelDefaults()
-            } else {
-                levelConfig.customProfiles.values.firstOrNull() ?: AlertConfig.Companion.getMediumLevelDefaults()
-            }
-        }
     }
 }
