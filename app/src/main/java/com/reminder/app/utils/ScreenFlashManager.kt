@@ -384,8 +384,10 @@ object ScreenFlashManager {
             // Stop active ringtone
             activeRingtone?.let { ringtone ->
                 try {
-                    ringtone.stop()
-                    android.util.Log.d("ScreenFlashManager", "Ringtone STOPPED")
+                    if (ringtone.isPlaying) {
+                        ringtone.stop()
+                        android.util.Log.d("ScreenFlashManager", "Ringtone STOPPED")
+                    }
                 } catch (e: Exception) {
                     android.util.Log.e("ScreenFlashManager", "Error stopping ringtone: ${e.message}")
                 }

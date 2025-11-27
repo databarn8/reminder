@@ -75,8 +75,10 @@ class AlarmActivity : ComponentActivity() {
             // Stop active media player
             activeMediaPlayer?.let { player ->
                 try {
-                    player.stop()
-                    android.util.Log.d("AlarmActivity", "Global: Media player STOPPED")
+                    if (player.isPlaying) {
+                        player.stop()
+                        android.util.Log.d("AlarmActivity", "Global: Media player STOPPED")
+                    }
                     player.release()
                     android.util.Log.d("AlarmActivity", "Global: Media player RELEASED")
                 } catch (e: Exception) {
@@ -88,8 +90,10 @@ class AlarmActivity : ComponentActivity() {
             // Stop active ringtone
             activeRingtone?.let { ringtone ->
                 try {
-                    ringtone.stop()
-                    android.util.Log.d("AlarmActivity", "Global: Ringtone STOPPED")
+                    if (ringtone.isPlaying) {
+                        ringtone.stop()
+                        android.util.Log.d("AlarmActivity", "Global: Ringtone STOPPED")
+                    }
                 } catch (e: Exception) {
                     android.util.Log.e("AlarmActivity", "Global: Error stopping ringtone: ${e.message}")
                 }
@@ -409,19 +413,20 @@ class AlarmActivity : ComponentActivity() {
                 
                 setOnCompletionListener {
                     // Check if global stop was requested
-                    if (globalSoundStopRequested) {
+                    if (globalSoundStopRequested || shouldStopSound) {
                         android.util.Log.d("AlarmActivity", "Global stop requested, not replaying sound")
                         release()
                         isReleased = true
+                        activeMediaPlayer = null
                         return@setOnCompletionListener
                     }
                     
                     currentPlayCount++
-                    if (currentPlayCount < times) {
+                    if (currentPlayCount < times && !globalSoundStopRequested && !shouldStopSound) {
                         // Play again after a short delay
                         val runnable = Runnable {
                             try {
-                                if (!globalSoundStopRequested) {
+                                if (!globalSoundStopRequested && !shouldStopSound) {
                                     start()
                                     android.util.Log.d("AlarmActivity", "Replaying sound, play ${currentPlayCount + 1}/$times")
                                 }
@@ -454,12 +459,12 @@ class AlarmActivity : ComponentActivity() {
             
             fun playNext() {
                 // Check if global stop was requested
-                if (globalSoundStopRequested) {
+                if (globalSoundStopRequested || shouldStopSound) {
                     android.util.Log.d("AlarmActivity", "Global stop requested, not replaying ringtone")
                     return
                 }
                 
-                if (currentPlayCount < times && ringtone != null && !shouldStopSound) {
+                if (currentPlayCount < times && ringtone != null) {
                     currentPlayCount++
                     ringtone.play()
                     android.util.Log.d("AlarmActivity", "Playing ringtone $times times, current play: $currentPlayCount")
@@ -492,6 +497,9 @@ class AlarmActivity : ComponentActivity() {
             android.util.Log.d("AlarmActivity", "=== STOP SOUND CALLED ===")
             android.util.Log.d("AlarmActivity", "Stopping alarm sound only")
             
+            // Set flag to prevent any further sound playback
+            shouldStopSound = true
+            
             // Use global sound stop method for comprehensive stopping
             stopAllSoundsGlobally()
             
@@ -500,6 +508,15 @@ class AlarmActivity : ComponentActivity() {
             mediaPlayer = null
             currentRingtone = null
             isReleased = true
+            
+            // Force stop any ongoing vibration
+            try {
+                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                vibrator.cancel()
+                android.util.Log.d("AlarmActivity", "Vibration cancelled")
+            } catch (e: Exception) {
+                android.util.Log.e("AlarmActivity", "Error cancelling vibration: ${e.message}")
+            }
             
         } catch (e: Exception) {
             android.util.Log.e("AlarmActivity", "Error stopping alarm sound: ${e.message}")
@@ -596,17 +613,30 @@ fun AlarmScreen(
                     }
                     else -> false
                 }
+            }
+            .clickable {
+                android.util.Log.d("AlarmActivity", "=== SCREEN CLICKED (CLICKABLE) - CALLING STOP SOUND ===")
+                onStopSound()
             },
         contentAlignment = Alignment.Center
     ) {
-        Card(
+        // Add a transparent overlay that captures all touches
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .fillMaxSize()
                 .clickable {
-                    android.util.Log.d("AlarmActivity", "=== CARD CLICKED - CALLING STOP SOUND ===")
+                    android.util.Log.d("AlarmActivity", "=== TRANSPARENT OVERLAY CLICKED - CALLING STOP SOUND ===")
                     onStopSound()
-                },
+                }
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable {
+                        android.util.Log.d("AlarmActivity", "=== CARD CLICKED - CALLING STOP SOUND ===")
+                        onStopSound()
+                    },
             colors = CardDefaults.cardColors(
                 containerColor = Color.White
             ),
