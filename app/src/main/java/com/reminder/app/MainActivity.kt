@@ -29,6 +29,7 @@ import com.reminder.app.ui.screens.InputScreen
 import com.reminder.app.ui.screens.ReminderListScreen
 import com.reminder.app.ui.screens.AlertSettingsScreenFixed
 import com.reminder.app.ui.screens.BackupSettingsScreen
+import com.reminder.app.ui.screens.SettingsScreen
 import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.utils.EnhancedEmailService
 import com.reminder.app.utils.GoogleSignInHelper
@@ -219,6 +220,10 @@ class MainActivity : ComponentActivity() {
                                 onBackupSettingsClick = {
                                     android.util.Log.d("BackupTest", "Backup settings button clicked!")
                                     navController.navigate("backup_settings")
+                                },
+                                onSettingsClick = {
+                                    android.util.Log.d("SettingsTest", "General settings button clicked!")
+                                    navController.navigate("settings")
                                 }
                             )
                         }
@@ -306,6 +311,25 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onSignIn = {
                                     // Google Sign In temporarily disabled
+                                }
+                            )
+                        }
+                        
+                        composable("settings") {
+                            android.util.Log.d("SettingsTest", "Settings screen navigated!")
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                onAlertSettingsClick = {
+                                    android.util.Log.d("SettingsTest", "Navigating to alert settings from settings screen!")
+                                    navController.navigate("alert_settings")
+                                },
+                                onEmailSettingsClick = {
+                                    android.util.Log.d("SettingsTest", "Navigating to email settings from settings screen!")
+                                    navController.navigate("email_settings")
+                                },
+                                onBackupSettingsClick = {
+                                    android.util.Log.d("SettingsTest", "Navigating to backup settings from settings screen!")
+                                    navController.navigate("backup_settings")
                                 }
                             )
                         }

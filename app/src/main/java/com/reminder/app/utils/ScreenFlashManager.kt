@@ -301,7 +301,7 @@ object ScreenFlashManager {
             // Store original volume and set to maximum
             val originalVolume = audioManager.getStreamVolume(streamType)
             val maxVolume = audioManager.getStreamMaxVolume(streamType)
-            audioManager.setStreamVolume(streamType, maxVolume)
+            audioManager.setStreamVolume(streamType, maxVolume, 0)
             
             android.util.Log.d("ScreenFlashManager", "Playing sound type $soundType: ${soundUri}, volume set to $maxVolume/$maxVolume")
             
@@ -311,7 +311,7 @@ object ScreenFlashManager {
             handler.postDelayed({
                 ringtone?.stop()
                 // Restore original volume after playing
-                audioManager.setStreamVolume(streamType, originalVolume)
+                audioManager.setStreamVolume(streamType, originalVolume, 0)
                 android.util.Log.d("ScreenFlashManager", "Sound stopped, volume restored to $originalVolume/$maxVolume")
             }, 1500)
         } catch (e: Exception) {

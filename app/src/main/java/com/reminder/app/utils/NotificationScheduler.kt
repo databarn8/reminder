@@ -27,7 +27,7 @@ class NotificationScheduler : BroadcastReceiver() {
         android.util.Log.d("NotificationScheduler", "Alarm received!")
         
         val title = intent.getStringExtra(EXTRA_REMINDER_TITLE) ?: return
-        val content = intent.getStringExtra(EXTRA_REMINDER_CONTENT) ?: return
+        var content = intent.getStringExtra(EXTRA_REMINDER_CONTENT) ?: return
         val reminderId = intent.getIntExtra(EXTRA_REMINDER_ID, -1)
         val reminderJson = intent.getStringExtra(EXTRA_REMINDER_JSON)
         val triggerType = intent.getStringExtra(EXTRA_TRIGGER_TYPE) ?: "AT_DUE_TIME"
@@ -35,12 +35,30 @@ class NotificationScheduler : BroadcastReceiver() {
         val enableSound = intent.getBooleanExtra(EXTRA_ENABLE_SOUND, true)
         val enableVibration = intent.getBooleanExtra(EXTRA_ENABLE_VIBRATION, true)
         
+        // Check meeting mode and adjust behavior
+        val meetingModeManager = MeetingModeManager.getInstance(context)
+        val isMeetingMode = meetingModeManager.isMeetingModeEnabled()
+        
+        // Truncate content to first 10 words if in meeting mode
+        if (isMeetingMode) {
+            content = meetingModeManager.truncateMessage(content)
+            android.util.Log.d("NotificationScheduler", "Meeting mode enabled - truncated content: $content")
+        }
+        
+        // Adjust alert features based on meeting mode
+        val shouldShowNotification = meetingModeManager.shouldShowFullNotification()
+        val shouldEnableFlash = meetingModeManager.shouldEnableFlash()
+        val shouldEnableSound = meetingModeManager.shouldEnableSound()
+        val shouldEnableVibration = meetingModeManager.shouldEnableVibration()
+        
         android.util.Log.d("NotificationScheduler", "Showing notification for: $title")
         android.util.Log.d("NotificationScheduler", "Reminder ID: $reminderId")
         android.util.Log.d("NotificationScheduler", "Trigger type: $triggerType")
+        android.util.Log.d("NotificationScheduler", "Meeting mode: $isMeetingMode")
+        android.util.Log.d("NotificationScheduler", "Show notification: $shouldShowNotification, Flash: $shouldEnableFlash, Sound: $shouldEnableSound, Vibration: $shouldEnableVibration")
         
         // Trigger screen flash if enabled
-        if (enableFlash) {
+        if (enableFlash && shouldEnableFlash) {
             val flashColor = when (triggerType) {
                 "MINUTES_BEFORE" -> android.graphics.Color.YELLOW
                 "HOURS_BEFORE" -> android.graphics.Color.BLUE
@@ -64,7 +82,7 @@ class NotificationScheduler : BroadcastReceiver() {
         }
         
         // Trigger vibration if enabled
-        if (enableVibration) {
+        if (enableVibration && shouldEnableVibration) {
             val vibrationPattern = when (triggerType) {
                 "MINUTES_BEFORE" -> longArrayOf(0, 100, 50, 100)
                 "HOURS_BEFORE" -> longArrayOf(0, 200, 100, 200, 100, 200)
@@ -79,8 +97,12 @@ class NotificationScheduler : BroadcastReceiver() {
         val reminder = reminderJson?.let { parseReminderFromJson(it) }
         launchAlarmActivity(context, title, content, reminderId, reminder)
         
-        // Also show notification as backup
-        showNotification(context, title, content, reminderId)
+        // Show notification only if not in meeting mode
+        if (shouldShowNotification) {
+            showNotification(context, title, content, reminderId)
+        } else {
+            android.util.Log.d("NotificationScheduler", "Meeting mode enabled - skipping full notification")
+        }
         
         // Send email if reminder data is available
         reminderJson?.let { json ->

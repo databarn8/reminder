@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -78,7 +79,8 @@ fun ReminderListScreen(
     onEmailClick: (Reminder) -> Unit = {},
     onEmailSettingsClick: () -> Unit = {},
     onAlertSettingsClick: () -> Unit = {},
-    onBackupSettingsClick: () -> Unit = {}
+    onBackupSettingsClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val reminders by viewModel.reminders.collectAsState()
@@ -115,18 +117,21 @@ fun ReminderListScreen(
                     }
                 },
                 actions = {
+                    // Gear icon for general settings - first position
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = onAlertSettingsClick) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Alert Settings"
                         )
                     }
-                    IconButton(onClick = onEmailSettingsClick) {
-                        Icon(
-                            imageVector = Icons.Default.Email,
-                            contentDescription = "Email Settings"
-                        )
-                    }
+                    // Email settings removed - already accessible via main settings
                     IconButton(onClick = onCalendarClick) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,

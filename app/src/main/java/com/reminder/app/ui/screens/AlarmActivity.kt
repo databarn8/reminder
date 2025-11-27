@@ -2,6 +2,7 @@ package com.reminder.app.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -39,6 +40,7 @@ import com.reminder.app.data.SoundType
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.data.Reminder
 import com.reminder.app.utils.NotificationScheduler
+import com.reminder.app.utils.MeetingModeManager
 import com.reminder.app.R
 import kotlinx.coroutines.delay
 
@@ -63,14 +65,22 @@ class AlarmActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
         
-        val title = intent.getStringExtra("alarm_title") ?: "Reminder"
-        val content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
-        val reminderId = intent.getIntExtra("reminder_id", -1)
+        var title = intent.getStringExtra("alarm_title") ?: "Reminder"
+        var content = intent.getStringExtra("alarm_content") ?: "Your reminder is due!"
         val alertLevelString = intent.getStringExtra("alert_level") ?: "LOW"
         val alertLevel = try {
             AlertLevel.valueOf(alertLevelString)
         } catch (e: Exception) {
             AlertLevel.LOW
+        }
+        
+        // Check meeting mode and adjust content
+        val meetingModeManager = MeetingModeManager.getInstance(this)
+        val isMeetingMode = meetingModeManager.isMeetingModeEnabled()
+        
+        if (isMeetingMode) {
+            content = meetingModeManager.truncateMessage(content)
+            android.util.Log.d("AlarmActivity", "Meeting mode enabled - truncated content: $content")
         }
         
         // Load alert level config
@@ -108,17 +118,37 @@ class AlarmActivity : ComponentActivity() {
     private fun startRepeatingAlarm(alertConfig: AlertConfig, alertLevel: AlertLevel) {
         if (isAlarmDismissed) return
         
-        // Apply alert configuration once for this reminder
-        if (alertConfig.vibration.enabled) {
+        // Check meeting mode settings
+        val meetingModeManager = MeetingModeManager.getInstance(this)
+        val isMeetingMode = meetingModeManager.isMeetingModeEnabled()
+        
+        // Apply alert configuration based on meeting mode
+        if (alertConfig.vibration.enabled && meetingModeManager.shouldEnableVibration()) {
             triggerVibration(alertConfig.vibration)
         }
         
-        if (alertConfig.sound.enabled) {
-            playAlarmSound(alertConfig.sound, alertLevel)
+        if (alertConfig.sound.enabled && meetingModeManager.shouldEnableSound()) {
+            // Get custom sound duration or default
+            val prefs = this.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
+            val customDuration = prefs.getInt("sound_duration_seconds", meetingModeManager.getSoundDurationSeconds())
+            playAlarmSound(alertConfig.sound, alertLevel, customDuration)
         }
         
-        // Always trigger screen flash - it's a key visual alert feature
-        triggerScreenFlash(alertLevel)
+        // Only trigger screen flash if not in meeting mode
+        if (meetingModeManager.shouldEnableFlash()) {
+            triggerScreenFlash(alertLevel)
+        }
+        
+        // Always cancel notification to avoid confusion when alarm is active
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.cancel(0) // Use 0 as default notification ID since we don't need specific reminder ID
+            android.util.Log.d("AlarmActivity", "Cancelled notification to avoid confusion with alarm screen")
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error cancelling notification: ${e.message}")
+        }
+        
+        android.util.Log.d("AlarmActivity", "Alarm started - Meeting mode: $isMeetingMode")
         
         alarmCount = 1 // Set to 1 since this is a single alarm for this reminder
         
@@ -171,7 +201,7 @@ class AlarmActivity : ComponentActivity() {
         }
     }
     
-    private fun playAlarmSound(soundConfig: SoundConfig, alertLevel: AlertLevel) {
+    private fun playAlarmSound(soundConfig: SoundConfig, alertLevel: AlertLevel, soundDurationSeconds: Int = 10) {
         try {
             // Stop any existing sound
             mediaPlayer?.stop()
@@ -245,12 +275,20 @@ class AlarmActivity : ComponentActivity() {
                 
                 android.util.Log.d("AlarmActivity", "Playing custom sound for $alertLevel: $alarmUri")
                 
-                // Auto-stop after 10 seconds
+                // Auto-stop after configured duration (default 10 seconds, or meeting mode duration)
+                val duration = if (MeetingModeManager.getInstance(this@AlarmActivity).isMeetingModeEnabled()) {
+                    soundDurationSeconds * 1000L // Convert to milliseconds
+                } else {
+                    10000L // Default 10 seconds
+                }
+                
+                android.util.Log.d("AlarmActivity", "Sound will auto-stop after ${duration}ms")
+                
                 handler?.postDelayed({
                     stop()
                     release()
                     isReleased = true
-                }, 10000)
+                }, duration)
             }
         } catch (e: Exception) {
             // Fallback to system sound
@@ -260,9 +298,15 @@ class AlarmActivity : ComponentActivity() {
                 
                 android.util.Log.e("AlarmActivity", "Fallback to system alarm sound: ${e.message}")
                 
+                val duration = if (MeetingModeManager.getInstance(this@AlarmActivity).isMeetingModeEnabled()) {
+                    soundDurationSeconds * 1000L
+                } else {
+                    10000L
+                }
+                
                 handler?.postDelayed({
                     ringtone?.stop()
-                }, 10000)
+                }, duration)
             } catch (e2: Exception) {
                 android.util.Log.e("AlarmActivity", "Could not play alarm sound: ${e2.message}")
             }
@@ -305,7 +349,7 @@ class AlarmActivity : ComponentActivity() {
         isAlarmDismissed = true
         
         // Clear the alarm handling state
-        val prefs = getSharedPreferences("alarm_activity_state", Context.MODE_PRIVATE)
+        val prefs = this.getSharedPreferences("alarm_activity_state", Context.MODE_PRIVATE)
         prefs.edit().remove("current_handling_id").apply()
         
         // Stop sound
@@ -352,7 +396,15 @@ fun AlarmScreen(
     alarmCount: Int,
     maxAlarms: Int
 ) {
+    val context = LocalContext.current
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    
+    // Load sound duration from preferences
+    var soundDuration by remember { mutableStateOf(10) }
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
+        soundDuration = prefs.getInt("sound_duration_seconds", 10)
+    }
     
     // Update time every second
     LaunchedEffect(Unit) {
@@ -461,23 +513,62 @@ fun AlarmScreen(
                 }
                 
                 // Stop Sound Only button (for when user wants to stop sound but keep alarm visible)
-                OutlinedButton(
+                Button(
                     onClick = {
                         // Just stop the sound without dismissing the alarm
                         onStopSound()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = backgroundColor
-                    )
+                        .height(80.dp), // Made button taller for easier tapping
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Black, // Changed to black for high contrast
+                        contentColor = Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp) // Added elevation for better visibility
                 ) {
-                    Text(
-                        text = "STOP SOUND ONLY",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = "Stop Sound",
+                        modifier = Modifier.size(24.dp) // Made icon larger
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "STOP SOUND",
+                        fontSize = 18.sp, // Made text larger
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                
+                // Sound Duration Display
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Sound Duration: ${soundDuration}s",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = "Configure duration in Alert Settings",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 
                 // Instructions

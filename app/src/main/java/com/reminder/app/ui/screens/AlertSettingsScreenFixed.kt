@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import com.reminder.app.data.AlertLevelOption
 import com.reminder.app.data.VibrationPattern
 import com.reminder.app.data.VibrationIntensity
 import com.reminder.app.data.SoundType
+import com.reminder.app.utils.MeetingModeManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +41,11 @@ fun AlertSettingsScreenFixed(
     var alertLevelConfig by remember { mutableStateOf(loadAlertLevelConfig(context)) }
     var selectedLevel by remember { mutableStateOf(AlertLevel.LOW) }
     var showSaveConfirmation by remember { mutableStateOf(false) }
+    
+    // Meeting mode state
+    val meetingModeManager = remember { MeetingModeManager.getInstance(context) }
+    var meetingModeEnabled by remember { mutableStateOf(meetingModeManager.isMeetingModeEnabled()) }
+    var soundDuration by remember { mutableStateOf(meetingModeManager.getSoundDurationSeconds()) }
     
     Scaffold(
         topBar = {
@@ -93,6 +100,23 @@ fun AlertSettingsScreenFixed(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                item {
+                    MeetingModeSection(
+                        meetingModeEnabled = meetingModeEnabled,
+                        soundDuration = soundDuration,
+                        onMeetingModeToggle = { enabled: Boolean ->
+                            meetingModeEnabled = enabled
+                            meetingModeManager.setMeetingMode(enabled)
+                            showSaveConfirmation = true
+                        },
+                        onSoundDurationChange = { duration: Int ->
+                            soundDuration = duration
+                            meetingModeManager.setSoundDurationSeconds(duration)
+                            showSaveConfirmation = true
+                        }
+                    )
+                }
+                
                 item {
                     Card {
                         Column(
@@ -432,6 +456,121 @@ private fun saveAlertLevelConfig(context: android.content.Context, config: Alert
             .apply()
     } catch (e: Exception) {
         android.util.Log.e("AlertSettingsScreen", "Error saving alert level config: ${e.message}")
+    }
+}
+
+@Composable
+fun MeetingModeSection(
+    meetingModeEnabled: Boolean,
+    soundDuration: Int,
+    onMeetingModeToggle: (Boolean) -> Unit,
+    onSoundDurationChange: (Int) -> Unit
+) {
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MeetingRoom,
+                        contentDescription = "Meeting Mode",
+                        modifier = Modifier.size(20.dp),
+                        tint = if (meetingModeEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Meeting Mode",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Switch(
+                    checked = meetingModeEnabled,
+                    onCheckedChange = onMeetingModeToggle,
+                    modifier = Modifier.scale(0.8f)
+                )
+            }
+            
+            if (meetingModeEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "When in meeting mode: only vibration works, no flash or sound. In normal mode: flash and sound work.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Sound Duration Control
+                Text(
+                    text = "Sound Duration: ${soundDuration}s",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            if (soundDuration > 1) {
+                                onSoundDurationChange(soundDuration - 1)
+                            }
+                        },
+                        modifier = Modifier.size(40.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Text("-", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Text(
+                        text = "${soundDuration}s",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    
+                    Button(
+                        onClick = {
+                            if (soundDuration < 30) {
+                                onSoundDurationChange(soundDuration + 1)
+                            }
+                        },
+                        modifier = Modifier.size(40.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Control how long alert sounds play (1-30 seconds)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
