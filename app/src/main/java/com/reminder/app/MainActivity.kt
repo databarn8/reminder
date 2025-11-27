@@ -93,6 +93,16 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    private val systemAlertWindowPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            android.util.Log.d("MainActivity", "SYSTEM_ALERT_WINDOW permission granted")
+        } else {
+            android.util.Log.w("MainActivity", "SYSTEM_ALERT_WINDOW permission denied")
+        }
+    }
+    
     private val alarmPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->

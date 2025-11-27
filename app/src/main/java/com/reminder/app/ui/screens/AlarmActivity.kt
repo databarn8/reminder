@@ -89,6 +89,7 @@ class AlarmActivity : ComponentActivity() {
                     alertLevel = alertLevel,
                     alertConfig = alertConfig,
                     onDismiss = { dismissAlarm() },
+                    onStopSound = { stopAlarmSoundOnly() },
                     alarmCount = alarmCount,
                     maxAlarms = maxAlarms
                 )
@@ -268,6 +269,38 @@ class AlarmActivity : ComponentActivity() {
         }
     }
     
+    private fun stopAlarmSoundOnly() {
+        try {
+            android.util.Log.d("AlarmActivity", "Stopping alarm sound only")
+            
+            // Stop media player sound
+            mediaPlayer?.let { player ->
+                if (player.isPlaying) {
+                    player.stop()
+                    android.util.Log.d("AlarmActivity", "Media player stopped")
+                }
+                player.release()
+            }
+            mediaPlayer = null
+            isReleased = true
+            
+            // Also stop any ringtone sounds that might be playing
+            try {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                // This will help stop any system sounds
+                audioManager.setStreamMute(AudioManager.STREAM_ALARM, false)
+                audioManager.setStreamMute(AudioManager.STREAM_MUSIC, false)
+                audioManager.setStreamMute(AudioManager.STREAM_RING, false)
+                audioManager.setStreamMute(AudioManager.STREAM_NOTIFICATION, false)
+            } catch (e: Exception) {
+                android.util.Log.e("AlarmActivity", "Error unmuting streams: ${e.message}")
+            }
+            
+        } catch (e: Exception) {
+            android.util.Log.e("AlarmActivity", "Error stopping alarm sound: ${e.message}")
+        }
+    }
+    
     private fun dismissAlarm() {
         isAlarmDismissed = true
         
@@ -315,6 +348,7 @@ fun AlarmScreen(
     alertLevel: AlertLevel,
     alertConfig: AlertConfig,
     onDismiss: () -> Unit,
+    onStopSound: () -> Unit,
     alarmCount: Int,
     maxAlarms: Int
 ) {
@@ -423,6 +457,26 @@ fun AlarmScreen(
                         text = "DISMISS ALARM",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                // Stop Sound Only button (for when user wants to stop sound but keep alarm visible)
+                OutlinedButton(
+                    onClick = {
+                        // Just stop the sound without dismissing the alarm
+                        onStopSound()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = backgroundColor
+                    )
+                ) {
+                    Text(
+                        text = "STOP SOUND ONLY",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 

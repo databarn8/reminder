@@ -87,9 +87,14 @@ object ScreenFlashManager {
             android.util.Log.d("ScreenFlashManager", "Triggering system-level screen flash")
             
             // Convert Compose Color to Android Color
-            val androidColor = android.graphics.Color.valueOf(
-                java.lang.String.format("#%06X", (0xFFFFFF and flashColor.value.toLong()).toInt())
-            )
+            val androidColor = try {
+                android.graphics.Color.parseColor(
+                    java.lang.String.format("#%06X", 0xFFFFFF and flashColor.value.toInt())
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("ScreenFlashManager", "Error converting color: ${e.message}")
+                android.graphics.Color.RED // Fallback to red
+            }
             
             // Create a system overlay that will flash even when screen is off
             val flashView = android.view.View(context).apply {
@@ -98,12 +103,21 @@ object ScreenFlashManager {
                     android.view.WindowManager.LayoutParams.MATCH_PARENT,
                     android.view.WindowManager.LayoutParams.MATCH_PARENT
                 ).apply {
-                    type = android.view.WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY
+                    // Use TYPE_APPLICATION_OVERLAY for Android 8+ (more reliable for sleep mode)
+                    type = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                    }
                     flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                             android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                             android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                             android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                            android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                            android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                            android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                            android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                     alpha = 0.95f // High visibility
                 }
             }
