@@ -42,10 +42,6 @@ fun AlertSettingsScreenFixed(
     var selectedLevel by remember { mutableStateOf(AlertLevel.LOW) }
     var showSaveConfirmation by remember { mutableStateOf(false) }
     
-    // Meeting mode state
-    val meetingModeManager = remember { MeetingModeManager.getInstance(context) }
-    var meetingModeEnabled by remember { mutableStateOf(meetingModeManager.isMeetingModeEnabled()) }
-    var soundDuration by remember { mutableStateOf(meetingModeManager.getSoundDurationSeconds()) }
     
     Scaffold(
         topBar = {
@@ -100,22 +96,6 @@ fun AlertSettingsScreenFixed(
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                item {
-                    MeetingModeSection(
-                        meetingModeEnabled = meetingModeEnabled,
-                        soundDuration = soundDuration,
-                        onMeetingModeToggle = { enabled: Boolean ->
-                            meetingModeEnabled = enabled
-                            meetingModeManager.setMeetingMode(enabled)
-                            showSaveConfirmation = true
-                        },
-                        onSoundDurationChange = { duration: Int ->
-                            soundDuration = duration
-                            meetingModeManager.setSoundDurationSeconds(duration)
-                            showSaveConfirmation = true
-                        }
-                    )
-                }
                 
                 item {
                     Card {
@@ -406,6 +386,73 @@ fun AlertLevelConfiguration(
                         
                         Spacer(modifier = Modifier.height(6.dp))
                         
+                        // Sound Times Control
+                        Text(
+                            text = "Sound Times: ${alertConfig.sound.repeatCount}x",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (alertConfig.sound.repeatCount > 1) {
+                                        val newConfig = alertConfig.copy(
+                                            sound = alertConfig.sound.copy(repeatCount = alertConfig.sound.repeatCount - 1)
+                                        )
+                                        onConfigChanged(newConfig)
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                            ) {
+                                Text("-", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                            
+                            Text(
+                                text = "${alertConfig.sound.repeatCount}x",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            
+                            Button(
+                                onClick = {
+                                    if (alertConfig.sound.repeatCount < 10) {
+                                        val newConfig = alertConfig.copy(
+                                            sound = alertConfig.sound.copy(repeatCount = alertConfig.sound.repeatCount + 1)
+                                        )
+                                        onConfigChanged(newConfig)
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Text(
+                            text = "Control how many times alert sounds play (1-10 times)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Spacer(modifier = Modifier.height(6.dp))
+                        
                         // Volume Slider
                         Text(
                             text = "Volume: ${(alertConfig.sound.volume * 100).toInt()}%",
@@ -508,69 +555,14 @@ fun MeetingModeSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
-            // Only show sound times control when meeting mode is OFF
-            if (!meetingModeEnabled) {
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Sound Times Control
-                Text(
-                    text = "Sound Times: ${soundDuration}x",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = {
-                            if (soundDuration > 1) {
-                                onSoundDurationChange(soundDuration - 1)
-                            }
-                        },
-                        modifier = Modifier.size(40.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        )
-                    ) {
-                        Text("-", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                    
-                    Text(
-                        text = "${soundDuration}x",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    
-                    Button(
-                        onClick = {
-                            if (soundDuration < 10) {
-                                onSoundDurationChange(soundDuration + 1)
-                            }
-                        },
-                        modifier = Modifier.size(40.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Control how many times alert sounds play (1-10 times)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // Note about level-specific sound times
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "Each alert level has its own sound repeat setting",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
