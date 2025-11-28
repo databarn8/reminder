@@ -77,7 +77,7 @@ fun CalendarScreen(
                             CalendarViewType.DAILY -> currentDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
                             CalendarViewType.WEEKLY -> "" // Remove title for weekly view
                             CalendarViewType.MONTHLY -> "" // Remove title for monthly view
-                            CalendarViewType.YEARLY -> currentDate.year.toString()
+                            CalendarViewType.YEARLY -> "" // Remove title for yearly view
                             else -> "" // Default to no title
                         },
                         style = MaterialTheme.typography.headlineSmall,
@@ -91,28 +91,28 @@ fun CalendarScreen(
                 },
                 actions = {
                     Row {
-                        // View toggle buttons
+                        // View toggle buttons - icons only
                         FilterChip(
                             onClick = { currentViewType = CalendarViewType.DAILY },
-                            label = { Text("Day", fontSize = 11.sp) },
+                            label = { Icon(Icons.Default.ViewDay, contentDescription = "Day", modifier = Modifier.size(16.dp)) },
                             selected = currentViewType == CalendarViewType.DAILY,
                             modifier = Modifier.height(32.dp).padding(end = 2.dp)
                         )
                         FilterChip(
                             onClick = { currentViewType = CalendarViewType.WEEKLY },
-                            label = { Text("Week", fontSize = 11.sp) },
+                            label = { Icon(Icons.Default.ViewWeek, contentDescription = "Week", modifier = Modifier.size(16.dp)) },
                             selected = currentViewType == CalendarViewType.WEEKLY,
                             modifier = Modifier.height(32.dp).padding(end = 2.dp)
                         )
                         FilterChip(
                             onClick = { currentViewType = CalendarViewType.MONTHLY },
-                            label = { Text("Month", fontSize = 11.sp) },
+                            label = { Icon(Icons.Default.CalendarMonth, contentDescription = "Month", modifier = Modifier.size(16.dp)) },
                             selected = currentViewType == CalendarViewType.MONTHLY,
                             modifier = Modifier.height(32.dp).padding(end = 2.dp)
                         )
                         FilterChip(
                             onClick = { currentViewType = CalendarViewType.YEARLY },
-                            label = { Text("Year", fontSize = 11.sp) },
+                            label = { Icon(Icons.Default.Event, contentDescription = "Year", modifier = Modifier.size(16.dp)) },
                             selected = currentViewType == CalendarViewType.YEARLY,
                             modifier = Modifier.height(32.dp)
                         )
@@ -264,7 +264,7 @@ fun DailyView(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = currentDate.year.toString(),
+                text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -345,7 +345,7 @@ fun WeeklyView(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "",
+                text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -504,24 +504,52 @@ fun MonthlyView(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Show Year Month text for monthly view in shaded area
-            if (currentViewType == CalendarViewType.MONTHLY) {
-                Text(
-                    text = "${currentDate.year} ${currentDate.month.toString().take(3)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    textAlign = TextAlign.Center
-                )
-            } else {
-                Text(
-                    text = "",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            // Show dynamic date text in shaded area for all views with different formats
+            when (currentViewType) {
+                CalendarViewType.DAILY -> {
+                    Text(
+                        text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                CalendarViewType.WEEKLY -> {
+                    Text(
+                        text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                CalendarViewType.MONTHLY -> {
+                    Text(
+                        text = currentDate.format(DateTimeFormatter.ofPattern("MMM yyyy")),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                CalendarViewType.YEARLY -> {
+                    Text(
+                        text = currentDate.format(DateTimeFormatter.ofPattern("yyyy")),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
             
             LazyVerticalGrid(
@@ -664,7 +692,7 @@ fun YearlyView(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "",
+                text = currentDate.format(DateTimeFormatter.ofPattern("yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
