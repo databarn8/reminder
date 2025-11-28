@@ -75,9 +75,10 @@ fun CalendarScreen(
                     Text(
                         text = when (currentViewType) {
                             CalendarViewType.DAILY -> currentDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
-                            CalendarViewType.MONTHLY -> currentDate.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+                            CalendarViewType.WEEKLY -> "" // Remove title for weekly view
+                            CalendarViewType.MONTHLY -> "" // Remove title for monthly view
                             CalendarViewType.YEARLY -> currentDate.year.toString()
-                            else -> currentDate.format(DateTimeFormatter.ofPattern("MMMM yyyy")) // Default to monthly view
+                            else -> "" // Default to no title
                         },
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
@@ -95,6 +96,12 @@ fun CalendarScreen(
                             onClick = { currentViewType = CalendarViewType.DAILY },
                             label = { Text("Day", fontSize = 11.sp) },
                             selected = currentViewType == CalendarViewType.DAILY,
+                            modifier = Modifier.height(32.dp).padding(end = 2.dp)
+                        )
+                        FilterChip(
+                            onClick = { currentViewType = CalendarViewType.WEEKLY },
+                            label = { Text("Week", fontSize = 11.sp) },
+                            selected = currentViewType == CalendarViewType.WEEKLY,
                             modifier = Modifier.height(32.dp).padding(end = 2.dp)
                         )
                         FilterChip(
@@ -136,6 +143,7 @@ fun CalendarScreen(
                 IconButton(onClick = {
                     currentDate = when (currentViewType) {
                         CalendarViewType.DAILY -> currentDate.minusDays(1)
+                        CalendarViewType.WEEKLY -> currentDate.minusWeeks(1)
                         CalendarViewType.MONTHLY -> currentDate.minusMonths(1)
                         CalendarViewType.YEARLY -> currentDate.minusYears(1)
                         else -> currentDate.minusMonths(1) // Default to monthly navigation
@@ -152,6 +160,7 @@ fun CalendarScreen(
                 IconButton(onClick = {
                     currentDate = when (currentViewType) {
                         CalendarViewType.DAILY -> currentDate.plusDays(1)
+                        CalendarViewType.WEEKLY -> currentDate.plusWeeks(1)
                         CalendarViewType.MONTHLY -> currentDate.plusMonths(1)
                         CalendarViewType.YEARLY -> currentDate.plusYears(1)
                         else -> currentDate.plusMonths(1) // Default to monthly navigation
@@ -195,6 +204,14 @@ fun CalendarScreen(
                         onDateClick = { date -> currentDate = date }
                     )
                 }
+                CalendarViewType.WEEKLY -> {
+                    WeeklyView(
+                        currentDate = currentDate,
+                        reminders = reminders,
+                        onReminderClick = onReminderClick,
+                        onDateClick = { date -> currentDate = date }
+                    )
+                }
                  CalendarViewType.MONTHLY -> {
                     MonthlyView(
                         currentDate = currentDate,
@@ -224,27 +241,6 @@ fun CalendarScreen(
                             android.util.Log.d("CalendarTest", "CalendarScreen YearlyView onDateClick: $date - switching to monthly view")
                             currentDate = date
                             currentViewType = CalendarViewType.MONTHLY
-                        }
-                    )
-                }
-                else -> {
-                    // Default to monthly view for any other case
-                    MonthlyView(
-                        currentDate = currentDate,
-                        reminders = reminders,
-                        onReminderClick = onReminderClick,
-                        onDateClick = { date ->
-                            android.util.Log.d("CalendarTest", "CalendarScreen default MonthlyView onDateClick: $date")
-                            currentDate = date
-                            val dayReminders = getRemindersForDate(date)
-                            android.util.Log.d("CalendarTest", "Day has ${dayReminders.size} reminders")
-                            if (dayReminders.isEmpty()) {
-                                android.util.Log.d("CalendarTest", "No reminders - calling onAddReminderWithDate")
-                                onAddReminderWithDate(date)
-                            } else {
-                                android.util.Log.d("CalendarTest", "Has reminders - showing first one")
-                                onReminderClick(dayReminders.first())
-                            }
                         }
                     )
                 }
