@@ -192,16 +192,6 @@ fun CalendarScreen(
                 )
             }
 
-            // Show Year Month text for monthly view
-            if (currentViewType == CalendarViewType.MONTHLY) {
-                Text(
-                    text = "${currentDate.year} ${currentDate.month.toString().take(3)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
             
             // Show different views based on selected view type
@@ -227,6 +217,7 @@ fun CalendarScreen(
                         currentDate = currentDate,
                         reminders = reminders,
                         onReminderClick = onReminderClick,
+                        currentViewType = currentViewType,
                         onDateClick = { date ->
                             android.util.Log.d("CalendarTest", "CalendarScreen MonthlyView onDateClick: $date")
                             currentDate = date
@@ -487,6 +478,7 @@ fun MonthlyView(
     currentDate: LocalDate,
     reminders: List<Reminder>,
     onReminderClick: (Reminder) -> Unit,
+    currentViewType: CalendarViewType,
     onDateClick: (LocalDate) -> Unit
 ) {
     // Helper function to get reminders for a specific date
@@ -512,12 +504,25 @@ fun MonthlyView(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            // Show Year Month text for monthly view in shaded area
+            if (currentViewType == CalendarViewType.MONTHLY) {
+                Text(
+                    text = "${currentDate.year} ${currentDate.month.toString().take(3)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Text(
+                    text = "",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
             
             LazyVerticalGrid(
                 columns = GridCells.Fixed(7),
