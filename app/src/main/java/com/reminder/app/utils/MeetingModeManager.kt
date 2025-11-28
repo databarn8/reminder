@@ -88,10 +88,10 @@ class MeetingModeManager private constructor(private val context: Context) {
     }
     
     /**
-     * Check if full notification should be shown (false in meeting mode)
+     * Check if full notification should be shown (true even in meeting mode)
      */
     fun shouldShowFullNotification(): Boolean {
-        return !isMeetingModeEnabled()
+        return true // Always show notifications, even in meeting mode
     }
     
     /**
