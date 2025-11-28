@@ -12,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.net.Uri
 import com.reminder.app.utils.CloudBackupManager
-import com.reminder.app.utils.GoogleSignInHelper
 import com.reminder.app.viewmodel.ReminderViewModel
 import com.reminder.app.data.Reminder
 import com.reminder.app.data.BackupMetadata
@@ -27,53 +29,60 @@ import java.io.File
 @Composable
 fun BackupSettingsScreen(
     viewModel: ReminderViewModel,
-    onBack: () -> Unit,
-    onSignIn: () -> Unit = {}
+    onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val cloudBackupManager = remember { CloudBackupManager(context) }
-    val googleSignInHelper = remember { GoogleSignInHelper(context) }
     val reminders by viewModel.reminders.collectAsState()
     
     val backupStatus by cloudBackupManager.backupStatus.collectAsState()
     val restoreStatus by cloudBackupManager.restoreStatus.collectAsState()
-    val authStatus by cloudBackupManager.authStatus.collectAsState()
-    val signInState by googleSignInHelper.signInState.collectAsState()
     var restoredReminders by remember { mutableStateOf<List<Reminder>?>(null) }
     
-    var autoBackupEnabled by remember { mutableStateOf(false) }
-    var backupInterval by remember { mutableStateOf(24) }
-    var showBackupHistory by remember { mutableStateOf(false) }
-    var backupHistory by remember { mutableStateOf<List<CloudBackupManager.BackupInfo>>(emptyList()) }
-    var backupMetadata by remember { mutableStateOf<BackupMetadata?>(null) }
-    
-    LaunchedEffect(Unit) {
-        backupHistory = cloudBackupManager.getBackupHistory()
-        backupMetadata = cloudBackupManager.getBackupMetadata()
-        
-        // Check if already signed in with Google
-        if (googleSignInHelper.isSignedIn()) {
-            cloudBackupManager.signInWithGoogle()
+    // File picker for restore
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { selectedUri ->
+            GlobalScope.launch {
+                try {
+                    val result = restoreFromZippedBackup(context, selectedUri)
+                    if (result.isSuccess) {
+                        val restoredRemindersList = result.getOrNull()
+                        restoredReminders = restoredRemindersList
+                        
+                        android.util.Log.d("BackupSettings", "Restore successful: ${restoredRemindersList?.size} reminders parsed from ZIP")
+                        android.util.Log.d("BackupSettings", "Waiting for user confirmation to import reminders")
+                    } else {
+                        android.util.Log.e("BackupSettings", "Restore failed: ${result.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("BackupSettings", "Restore error: ${e.message}")
+                }
+            }
         }
     }
     
-    LaunchedEffect(signInState) {
-        // Update cloud backup manager auth status when sign-in state changes
-        when (signInState) {
-            GoogleSignInHelper.SignInState.Success -> {
-                cloudBackupManager.signInWithGoogle()
-            }
-            GoogleSignInHelper.SignInState.SignedOut -> {
-                cloudBackupManager.signOut()
-            }
-            else -> {}
-        }
+    // Pagination state
+    val listState = rememberLazyListState()
+    var displayedBackupCount by remember { mutableStateOf(15) } // Show 15 items initially
+    var allBackupHistory by remember { mutableStateOf<List<CloudBackupManager.BackupInfo>>(emptyList()) }
+    
+    var autoBackupEnabled by remember { mutableStateOf(false) }
+    var backupInterval by remember { mutableStateOf(24) }
+    var backupMetadata by remember { mutableStateOf<BackupMetadata?>(null) }
+    
+    LaunchedEffect(Unit) {
+        // Load all backup history and sort by date (newest first)
+        val allBackups = cloudBackupManager.getBackupHistory()
+        allBackupHistory = allBackups.sortedByDescending { it.timestamp }
+        backupMetadata = cloudBackupManager.getBackupMetadata()
     }
     
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Backup & Sync") },
+                title = { Text("Backup & Restore") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -87,78 +96,9 @@ fun BackupSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            state = listState
         ) {
-            // Account Status
-            item {
-                Card {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Google Account",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                val accountEmail = googleSignInHelper.getAccountEmail()
-                                Text(
-                                    text = when {
-                                        authStatus == CloudBackupManager.AuthStatus.SignedIn && accountEmail != null ->
-                                            "Connected as $accountEmail"
-                                        authStatus == CloudBackupManager.AuthStatus.SignedIn ->
-                                            "Connected to Google Drive"
-                                        authStatus == CloudBackupManager.AuthStatus.SignedOut ->
-                                            "Not signed in"
-                                        authStatus == CloudBackupManager.AuthStatus.Error ->
-                                            "Authentication error"
-                                        else -> "Local backup only"
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = when (authStatus) {
-                                        CloudBackupManager.AuthStatus.SignedIn -> MaterialTheme.colorScheme.primary
-                                        CloudBackupManager.AuthStatus.SignedOut -> MaterialTheme.colorScheme.onSurfaceVariant
-                                        CloudBackupManager.AuthStatus.Error -> MaterialTheme.colorScheme.error
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    }
-                                )
-                            }
-                            
-                            if (authStatus == CloudBackupManager.AuthStatus.SignedIn) {
-                                OutlinedButton(
-                                    onClick = {
-                                        googleSignInHelper.signOut()
-                                    }
-                                ) {
-                                    Text("Sign Out")
-                                }
-                            } else {
-                                Button(
-                                    onClick = {
-                                        onSignIn()
-                                    },
-                                    enabled = signInState != GoogleSignInHelper.SignInState.SigningIn
-                                ) {
-                                    if (signInState == GoogleSignInHelper.SignInState.SigningIn) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    Text("Sign In")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             
             // Manual Backup
             item {
@@ -173,74 +113,30 @@ fun BackupSettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         
-                        Row(
+                        Button(
+                            onClick = {
+                                // Create local backup
+                                GlobalScope.launch {
+                                    val remindersList = reminders.toList()
+                                    val result = cloudBackupManager.smartBackupToLocal(remindersList)
+                                    
+                                    // Refresh backup metadata and history
+                                    backupMetadata = cloudBackupManager.getBackupMetadata()
+                                    val allBackups = cloudBackupManager.getBackupHistory()
+                                    allBackupHistory = allBackups.sortedByDescending { it.timestamp }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            enabled = backupStatus != CloudBackupManager.BackupStatus.BackingUp
                         ) {
-                            Button(
-                                onClick = {
-                                    // Backup to Google Drive if signed in, otherwise local
-                                    GlobalScope.launch {
-                                        val reminders = reminders.toList()
-                                        val result = if (cloudBackupManager.isSignedIn()) {
-                                            cloudBackupManager.backupToGoogleDrive(reminders)
-                                        } else {
-                                            cloudBackupManager.smartBackupToLocal(reminders)
-                                        }
-                                        
-                                        // Refresh backup metadata
-                                        backupMetadata = cloudBackupManager.getBackupMetadata()
-                                        // Refresh backup history
-                                        backupHistory = cloudBackupManager.getBackupHistory()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = backupStatus != CloudBackupManager.BackupStatus.BackingUp
-                            ) {
-                                if (backupStatus == CloudBackupManager.BackupStatus.BackingUp) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Text(if (cloudBackupManager.isSignedIn()) "Cloud Backup" else "Local Backup")
+                            if (backupStatus == CloudBackupManager.BackupStatus.BackingUp) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
-                            
-                            OutlinedButton(
-                                onClick = {
-                                    // Restore from Google Drive if signed in, otherwise local
-                                    GlobalScope.launch {
-                                        try {
-                                            val result = if (cloudBackupManager.isSignedIn()) {
-                                                cloudBackupManager.restoreFromGoogleDrive()
-                                            } else {
-                                                cloudBackupManager.smartRestoreFromLocal()
-                                            }
-                                            if (result.isSuccess) {
-                                                val restoredRemindersList = result.getOrNull()
-                                                restoredReminders = restoredRemindersList
-                                                android.util.Log.d("BackupSettings", "Restore successful: ${restoredRemindersList?.size} reminders restored")
-                                            } else {
-                                                android.util.Log.e("BackupSettings", "Restore failed: ${result.exceptionOrNull()?.message}")
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("BackupSettings", "Restore error: ${e.message}")
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                enabled = restoreStatus != CloudBackupManager.RestoreStatus.Restoring
-                            ) {
-                                if (restoreStatus == CloudBackupManager.RestoreStatus.Restoring) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
-                                Text(if (cloudBackupManager.isSignedIn()) "Cloud Restore" else "Local Restore")
-                            }
+                            Text("Create Backup")
                         }
                         
                         // Status messages
@@ -254,12 +150,6 @@ fun BackupSettingsScreen(
                             CloudBackupManager.BackupStatus.Error -> {
                                 Text(
                                     text = "Backup failed. Please try again.",
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                            CloudBackupManager.BackupStatus.AuthRequired -> {
-                                Text(
-                                    text = "Please sign in to Google Drive for cloud backup.",
                                     color = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -293,12 +183,6 @@ fun BackupSettingsScreen(
                                 Text(
                                     text = "No backup files found.",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            CloudBackupManager.RestoreStatus.AuthRequired -> {
-                                Text(
-                                    text = "Please sign in to Google Drive for cloud restore.",
-                                    color = MaterialTheme.colorScheme.error
                                 )
                             }
                             else -> {}
@@ -377,11 +261,7 @@ fun BackupSettingsScreen(
                         }
                         
                         Text(
-                            text = if (cloudBackupManager.isSignedIn()) {
-                                "Auto backup saves your reminders to Google Drive every ${backupInterval} hours"
-                            } else {
-                                "Auto backup saves your reminders locally every ${backupInterval} hours"
-                            },
+                            text = "Auto backup saves your reminders locally every ${backupInterval} hours",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -484,7 +364,7 @@ fun BackupSettingsScreen(
                 }
             }
             
-            // Backup History
+            // Backup History with Pagination
             item {
                 Card {
                     Column(
@@ -506,7 +386,8 @@ fun BackupSettingsScreen(
                                 onClick = {
                                     // Launch a coroutine to call suspend function
                                     GlobalScope.launch {
-                                        backupHistory = cloudBackupManager.getBackupHistory()
+                                        val allBackups = cloudBackupManager.getBackupHistory()
+                                        allBackupHistory = allBackups.sortedByDescending { it.timestamp }
                                     }
                                 }
                             ) {
@@ -514,15 +395,47 @@ fun BackupSettingsScreen(
                             }
                         }
                         
-                        if (backupHistory.isEmpty()) {
+                        if (allBackupHistory.isEmpty()) {
                             Text(
                                 text = "No backup files found",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         } else {
-                            backupHistory.take(10).forEach { backup ->
-                                BackupHistoryItem(backup = backup)
+                            // Show paginated backup files
+                            val displayedBackups = allBackupHistory.take(displayedBackupCount)
+                            displayedBackups.forEach { backup ->
+                                SimpleBackupHistoryItem(backup = backup)
+                            }
+                            
+                            // Show Load More button if there are more files
+                            if (allBackupHistory.size > displayedBackupCount) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            displayedBackupCount = minOf(displayedBackupCount + 15, allBackupHistory.size)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Load More (${allBackupHistory.size - displayedBackupCount} remaining)")
+                                    }
+                                    
+                                    if (displayedBackupCount < allBackupHistory.size) {
+                                        Button(
+                                            onClick = {
+                                                displayedBackupCount = allBackupHistory.size
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text("Show All")
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -731,154 +644,177 @@ fun BackupSettingsScreen(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
-                    }
-                }
-            }
-            
-            // Export Options
-            item {
-                Card {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Export Options",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
                         
-                        Text(
-                            text = "Export your reminders to share or migrate to another device:",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    // Export to CSV
-                                    GlobalScope.launch {
-                                        try {
-                                            val reminders = reminders.toList()
-                                            val result = com.reminder.app.utils.DataExportImportManager(context).exportToCSV(reminders)
-                                            if (result.isSuccess) {
-                                                android.util.Log.d("BackupSettings", "CSV exported to: ${result.getOrNull()}")
-                                            } else {
-                                                android.util.Log.e("BackupSettings", "CSV export failed: ${result.exceptionOrNull()?.message}")
+                        // Restore Backup Section
+                        item {
+                            Card {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(
+                                        text = "Restore Backup",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    
+                                    Text(
+                                        text = "Select a zipped backup file to restore your reminders:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    
+                                    // File picker button
+                                    OutlinedButton(
+                                        onClick = {
+                                            // Open file picker to restore from zipped backup
+                                            try {
+                                                android.util.Log.d("BackupSettings", "Launching file picker for ZIP files")
+                                                filePickerLauncher.launch("application/zip")
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("BackupSettings", "Error launching file picker: ${e.message}")
+                                                // Try with a more general MIME type
+                                                try {
+                                                    filePickerLauncher.launch("*/*")
+                                                } catch (e2: Exception) {
+                                                    android.util.Log.e("BackupSettings", "Error launching file picker with */*: ${e2.message}")
+                                                }
                                             }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("BackupSettings", "CSV export error: ${e.message}")
-                                        }
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Select Backup File")
                                     }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Export CSV")
+                                }
                             }
-                            
-                            OutlinedButton(
-                                onClick = {
-                                    // Export to JSON
-                                    GlobalScope.launch {
-                                        try {
-                                            val reminders = reminders.toList()
-                                            val result = com.reminder.app.utils.DataExportImportManager(context).exportToJSON(reminders)
-                                            if (result.isSuccess) {
-                                                android.util.Log.d("BackupSettings", "JSON exported to: ${result.getOrNull()}")
-                                            } else {
-                                                android.util.Log.e("BackupSettings", "JSON export failed: ${result.exceptionOrNull()?.message}")
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("BackupSettings", "JSON export error: ${e.message}")
+                        }
+                        
+                        // Show restore confirmation when file is selected
+                        if (restoredReminders != null) {
+                            item {
+                                android.util.Log.d("BackupSettings", "DEBUG: Showing restore UI for ${restoredReminders?.size} reminders")
+                                
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    ),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = "Ready to Import ${restoredReminders?.size ?: 0} Reminders",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        
+                                        Button(
+                                            onClick = {
+                                                android.util.Log.d("BackupSettings", "DEBUG: Import button clicked")
+                                                // Import restored reminders into database
+                                                GlobalScope.launch {
+                                                    try {
+                                                        restoredReminders?.forEach { reminder ->
+                                                            viewModel.insertReminder(reminder)
+                                                        }
+                                                        android.util.Log.d("BackupSettings", "Successfully imported ${restoredReminders?.size} reminders to database")
+                                                        
+                                                        // Clear the restored reminders after successful import
+                                                        restoredReminders = null
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("BackupSettings", "Error importing reminders: ${e.message}")
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text("Import ${restoredReminders?.size ?: 0} Reminders to App")
                                         }
                                     }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Export JSON")
+                                }
                             }
                         }
                     }
                 }
             }
+            
         }
     }
 }
 
-@Composable
-private fun BackupHistoryItem(backup: CloudBackupManager.BackupInfo) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    val sizeText = when {
-        backup.size < 1024 -> "${backup.size} B"
-        backup.size < 1024 * 1024 -> "${backup.size / 1024} KB"
-        else -> "${backup.size / (1024 * 1024)} MB"
+/**
+ * Parse and restore reminders from a zipped backup file
+ */
+private fun restoreFromZippedBackup(context: android.content.Context, zipFileUri: android.net.Uri): Result<List<Reminder>> {
+    return try {
+        context.contentResolver.openInputStream(zipFileUri)?.use { inputStream ->
+            java.util.zip.ZipInputStream(inputStream).use { zis ->
+                var entry = zis.nextEntry
+                val reminders = mutableListOf<Reminder>()
+                
+                while (entry != null) {
+                    if (entry.name.endsWith(".json")) {
+                        val jsonContent = zis.readBytes().toString(Charsets.UTF_8)
+                        val backupObject = org.json.JSONObject(jsonContent)
+                        val remindersArray = backupObject.getJSONArray("reminders")
+                        
+                        for (i in 0 until remindersArray.length()) {
+                            val reminderObject = remindersArray.getJSONObject(i)
+                            val reminder = Reminder(
+                                id = reminderObject.optInt("id", 0),
+                                content = reminderObject.optString("content", ""),
+                                category = reminderObject.optString("category", "Personal"),
+                                importance = reminderObject.optInt("importance", 5),
+                                reminderTime = reminderObject.optLong("reminderTime", System.currentTimeMillis()),
+                                whenDay = if (reminderObject.has("whenDay")) reminderObject.optString("whenDay") else null,
+                                whenTime = if (reminderObject.has("whenTime")) reminderObject.optString("whenTime") else null,
+                                repeatType = reminderObject.optString("repeatType", "none"),
+                                repeatInterval = reminderObject.optInt("repeatInterval", 1),
+                                isActive = reminderObject.optBoolean("isActive", true),
+                                voiceInput = if (reminderObject.has("voiceInput")) reminderObject.optString("voiceInput") else null,
+                                isProcessed = reminderObject.optBoolean("isProcessed", false),
+                                triggerPoints = if (reminderObject.has("triggerPoints")) reminderObject.optString("triggerPoints") else null,
+                                repeatPattern = if (reminderObject.has("repeatPattern")) reminderObject.optString("repeatPattern") else null,
+                                alertConfig = if (reminderObject.has("alertConfig")) reminderObject.optString("alertConfig") else null,
+                                alertLevel = reminderObject.optString("alertLevel", "LOW"),
+                                createdAt = reminderObject.optLong("createdAt", System.currentTimeMillis())
+                            )
+                            reminders.add(reminder)
+                        }
+                    }
+                    entry = zis.nextEntry
+                }
+                
+                Result.success(reminders)
+            } ?: Result.failure(Exception("Failed to open ZIP file"))
+        } ?: Result.failure(Exception("Failed to open file"))
+    } catch (e: Exception) {
+        android.util.Log.e("BackupSettings", "Error restoring from ZIP: ${e.message}")
+        Result.failure(e)
     }
+}
+
+@Composable
+private fun SimpleBackupHistoryItem(backup: CloudBackupManager.BackupInfo) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = backup.fileName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                // Backup type badge
-                Surface(
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                    color = when (backup.type) {
-                        "Base Backup" -> MaterialTheme.colorScheme.primaryContainer
-                        "Delta Backup" -> MaterialTheme.colorScheme.secondaryContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = backup.type,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when (backup.type) {
-                            "Base Backup" -> MaterialTheme.colorScheme.onPrimaryContainer
-                            "Delta Backup" -> MaterialTheme.colorScheme.onSecondaryContainer
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-            }
+            Text(
+                text = backup.fileName,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
             
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = backup.location,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "•",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = sizeText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             Text(
                 text = dateFormat.format(Date(backup.timestamp)),
                 style = MaterialTheme.typography.bodySmall,
@@ -886,21 +822,12 @@ private fun BackupHistoryItem(backup: CloudBackupManager.BackupInfo) {
             )
         }
         
-        if (backup.isCloud) {
-            Icon(
-                imageVector = Icons.Default.Cloud,
-                contentDescription = "Cloud backup",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.Storage,
-                contentDescription = "Local backup",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.Storage,
+            contentDescription = "Local backup",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
