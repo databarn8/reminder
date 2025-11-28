@@ -1583,7 +1583,7 @@ fun InputScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Single content field (typing + voice) - ultra compact for keyboard visibility
+                    // Single content field (typing + voice) - expandable up to 5 lines with smaller font
                     OutlinedTextField(
                         value = content,
                         onValueChange = { content = it },
@@ -1591,17 +1591,20 @@ fun InputScreen(
                             Text(
                                 text = "What do you need?",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 8.sp // Ultra small font for keyboard mode
+                                    fontSize = 10.sp // Small font for better readability
                                 )
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 1, // Single line to save maximum space
+                        maxLines = 5, // Expandable up to 5 lines for longer content
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 12.sp // Smaller font to fit more text
+                        ),
                         placeholder = {
                             Text(
                                 text = "e.g., Call mom tomorrow at 3pm",
                                 style = MaterialTheme.typography.bodySmall.copy(
-                                    fontSize = 8.sp // Small placeholder text
+                                    fontSize = 12.sp // Smaller placeholder text
                                 )
                             )
                         }
