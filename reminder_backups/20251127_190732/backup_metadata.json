@@ -1,0 +1,12 @@
+{
+  "deviceId": "fe9abc159e965d66",
+  "lastFullBackup": 1764284392173,
+  "lastDeltaBackup": 1764284396240,
+  "baseBackupFile": "reminder_base_20251127.json",
+  "deltaFiles": [
+    "reminder_delta_20251127_1759.json"
+  ],
+  "totalReminders": 3,
+  "backupSize": 2386,
+  "version": "2.0"
+}

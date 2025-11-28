@@ -312,11 +312,7 @@ class MainActivity : ComponentActivity() {
                             android.util.Log.d("BackupTest", "Backup settings screen navigated!")
                             BackupSettingsScreen(
                                 viewModel = viewModel,
-                                onBack = { navController.popBackStack() },
-                                onSignIn = {
-                                    // Launch Google Sign In
-                                    googleSignInHelper.signIn(this@MainActivity, signInLauncher)
-                                }
+                                onBack = { navController.popBackStack() }
                             )
                         }
                         

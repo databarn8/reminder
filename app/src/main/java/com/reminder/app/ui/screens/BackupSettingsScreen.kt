@@ -64,7 +64,6 @@ fun BackupSettingsScreen(
     }
     
     // Pagination state
-    val listState = rememberLazyListState()
     var displayedBackupCount by remember { mutableStateOf(15) } // Show 15 items initially
     var allBackupHistory by remember { mutableStateOf<List<CloudBackupManager.BackupInfo>>(emptyList()) }
     
@@ -96,8 +95,7 @@ fun BackupSettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            state = listState
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             
             // Manual Backup
@@ -278,7 +276,7 @@ fun BackupSettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "Smart Backup Status",
+                                text = "Backup Status",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -402,10 +400,31 @@ fun BackupSettingsScreen(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         } else {
-                            // Show paginated backup files
+                            // Show paginated backup files with cleaner display
                             val displayedBackups = allBackupHistory.take(displayedBackupCount)
                             displayedBackups.forEach { backup ->
-                                SimpleBackupHistoryItem(backup = backup)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = backup.fileName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        
+                                        val dateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+                                        Text(
+                                            text = dateFormat.format(Date(backup.timestamp)),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                             
                             // Show Load More button if there are more files
@@ -442,7 +461,7 @@ fun BackupSettingsScreen(
                 }
             }
             
-            // Backup Content Viewer
+            // Restore Backup Section
             item {
                 Card {
                     Column(
@@ -450,297 +469,90 @@ fun BackupSettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Backup Content Viewer",
+                            text = "Restore Backup",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         
-                        var selectedBackup by remember { mutableStateOf<CloudBackupManager.BackupInfo?>(null) }
-                        var backupContent by remember { mutableStateOf("") }
+                        Text(
+                            text = "Select a zipped backup file to restore your reminders:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         
-                        // Backup file selector
-                        var expanded by remember { mutableStateOf(false) }
-                        var backupFiles by remember { mutableStateOf<List<CloudBackupManager.BackupInfo>>(emptyList()) }
-                        
-                        LaunchedEffect(Unit) {
-                            backupFiles = cloudBackupManager.getBackupHistory().filter { !it.isCloud }
-                        }
-                        
-                        if (backupFiles.isNotEmpty()) {
-                            ExposedDropdownMenuBox(
-                                expanded = expanded,
-                                onExpandedChange = { expanded = !expanded }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedBackup?.fileName ?: "Select backup file",
-                                    onValueChange = { },
-                                    readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                                    modifier = Modifier
-                                        .menuAnchor()
-                                        .fillMaxWidth()
-                                )
-                                
-                                ExposedDropdownMenu(
-                                    expanded = expanded,
-                                    onDismissRequest = { expanded = false }
-                                ) {
-                                    backupFiles.forEach { backup ->
-                                        DropdownMenuItem(
-                                            text = { Text(backup.fileName) },
-                                            onClick = {
-                                                selectedBackup = backup
-                                                expanded = false
-                                                
-                                                // Load backup content
-                                                GlobalScope.launch {
-                                                    try {
-                                                        val backupFile = if (backup.location == "Local") {
-                                                            File(context.filesDir, "backups/${backup.fileName}")
-                                                        } else {
-                                                            File(context.getExternalFilesDir(null), "Downloads/${backup.fileName}")
-                                                        }
-                                                        
-                                                        if (backupFile.exists()) {
-                                                            backupContent = backupFile.readText()
-                                                        } else {
-                                                            backupContent = "File not found: ${backupFile.absolutePath}"
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        backupContent = "Error loading backup: ${e.message}"
-                                                        android.util.Log.e("BackupSettings", "Error loading backup content: ${e.message}")
-                                                    }
-                                                }
-                                            }
-                                        )
+                        // File picker button
+                        OutlinedButton(
+                            onClick = {
+                                // Open file picker to restore from zipped backup
+                                try {
+                                    android.util.Log.d("BackupSettings", "Launching file picker for ZIP files")
+                                    filePickerLauncher.launch("application/zip")
+                                } catch (e: Exception) {
+                                    android.util.Log.e("BackupSettings", "Error launching file picker: ${e.message}")
+                                    // Try with a more general MIME type
+                                    try {
+                                        filePickerLauncher.launch("*/*")
+                                    } catch (e2: Exception) {
+                                        android.util.Log.e("BackupSettings", "Error launching file picker with */*: ${e2.message}")
                                     }
                                 }
-                            }
-                            
-                            if (selectedBackup != null) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                // Display backup content
-                                if (backupContent.isNotEmpty()) {
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surface
-                                        ),
-                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp)
-                                        ) {
-                                            selectedBackup?.let { backup ->
-                                                Text(
-                                                    text = "Backup Content: ${backup.fileName}",
-                                                    style = MaterialTheme.typography.titleSmall,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                            }
-                                            
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            
-                                            // Parse and display backup content
-                                            val backupParseResult = remember(backupContent) {
-                                                try {
-                                                    val backupObject = org.json.JSONObject(backupContent)
-                                                    val remindersArray = backupObject.getJSONArray("reminders")
-                                                    Result.success(remindersArray)
-                                                } catch (e: Exception) {
-                                                    Result.failure(e)
-                                                }
-                                            }
-                                            
-                                            backupParseResult.getOrNull()?.let { remindersArray ->
-                                                Text(
-                                                    text = "Total Reminders: ${remindersArray.length()}",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                                
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                
-                                                // Show first few reminders as preview
-                                                val previewCount = minOf(3, remindersArray.length())
-                                                
-                                                for (index in 0 until previewCount) {
-                                                    val reminderObject = remindersArray.getJSONObject(index)
-                                                    val reminderContent = reminderObject.optString("content", "")
-                                                    val reminderCategory = reminderObject.optString("category", "")
-                                                    val reminderTime = reminderObject.optLong("reminderTime", 0L)
-                                                    
-                                                    Card(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(vertical = 4.dp),
-                                                        colors = CardDefaults.cardColors(
-                                                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                                        )
-                                                    ) {
-                                                        Column(
-                                                            modifier = Modifier.padding(8.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = reminderContent.ifEmpty { "No content" },
-                                                                style = MaterialTheme.typography.bodySmall,
-                                                                maxLines = 2,
-                                                                color = MaterialTheme.colorScheme.onSurface
-                                                            )
-                                                            
-                                                            if (reminderCategory.isNotEmpty()) {
-                                                                Text(
-                                                                    text = "Category: $reminderCategory",
-                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                    color = MaterialTheme.colorScheme.primary
-                                                                )
-                                                            }
-                                                            
-                                                            if (reminderTime > 0) {
-                                                                val date = Date(reminderTime)
-                                                                val formatter = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-                                                                Text(
-                                                                    text = "Time: ${formatter.format(date)}",
-                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                if (remindersArray.length() > previewCount) {
-                                                    Text(
-                                                        text = "... and ${remindersArray.length() - previewCount} more reminders",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.padding(top = 8.dp)
-                                                    )
-                                                }
-                                            } ?: backupParseResult.exceptionOrNull()?.let { error ->
-                                                Text(
-                                                    text = "Error reading backup: ${error.message}",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.error
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    Text(
-                                        text = "Loading backup content...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        } else {
-                            Text(
-                                text = "No local backup files found",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-                        
-                        // Restore Backup Section
-                        item {
-                            Card {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Text(
-                                        text = "Restore Backup",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    
-                                    Text(
-                                        text = "Select a zipped backup file to restore your reminders:",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    
-                                    // File picker button
-                                    OutlinedButton(
-                                        onClick = {
-                                            // Open file picker to restore from zipped backup
-                                            try {
-                                                android.util.Log.d("BackupSettings", "Launching file picker for ZIP files")
-                                                filePickerLauncher.launch("application/zip")
-                                            } catch (e: Exception) {
-                                                android.util.Log.e("BackupSettings", "Error launching file picker: ${e.message}")
-                                                // Try with a more general MIME type
-                                                try {
-                                                    filePickerLauncher.launch("*/*")
-                                                } catch (e2: Exception) {
-                                                    android.util.Log.e("BackupSettings", "Error launching file picker with */*: ${e2.message}")
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text("Select Backup File")
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Show restore confirmation when file is selected
-                        if (restoredReminders != null) {
-                            item {
-                                android.util.Log.d("BackupSettings", "DEBUG: Showing restore UI for ${restoredReminders?.size} reminders")
-                                
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp)
-                                    ) {
-                                        Text(
-                                            text = "Ready to Import ${restoredReminders?.size ?: 0} Reminders",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                        
-                                        Button(
-                                            onClick = {
-                                                android.util.Log.d("BackupSettings", "DEBUG: Import button clicked")
-                                                // Import restored reminders into database
-                                                GlobalScope.launch {
-                                                    try {
-                                                        restoredReminders?.forEach { reminder ->
-                                                            viewModel.insertReminder(reminder)
-                                                        }
-                                                        android.util.Log.d("BackupSettings", "Successfully imported ${restoredReminders?.size} reminders to database")
-                                                        
-                                                        // Clear the restored reminders after successful import
-                                                        restoredReminders = null
-                                                    } catch (e: Exception) {
-                                                        android.util.Log.e("BackupSettings", "Error importing reminders: ${e.message}")
-                                                    }
-                                                }
-                                            },
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text("Import ${restoredReminders?.size ?: 0} Reminders to App")
-                                        }
-                                    }
-                                }
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Select Backup File")
                         }
                     }
                 }
             }
             
+            // Show restore confirmation when file is selected
+            if (restoredReminders != null) {
+                item {
+                    android.util.Log.d("BackupSettings", "DEBUG: Showing restore UI for ${restoredReminders?.size} reminders")
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Ready to Import ${restoredReminders?.size ?: 0} Reminders",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            
+                            Button(
+                                onClick = {
+                                    android.util.Log.d("BackupSettings", "DEBUG: Import button clicked")
+                                    // Import restored reminders into database
+                                    GlobalScope.launch {
+                                        try {
+                                            restoredReminders?.forEach { reminder ->
+                                                viewModel.addReminder(reminder)
+                                            }
+                                            android.util.Log.d("BackupSettings", "Successfully imported ${restoredReminders?.size} reminders to database")
+                                            
+                                            // Clear the restored reminders after successful import
+                                            restoredReminders = null
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("BackupSettings", "Error importing reminders: ${e.message}")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Import ${restoredReminders?.size ?: 0} Reminders to App")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -794,40 +606,6 @@ private fun restoreFromZippedBackup(context: android.content.Context, zipFileUri
     } catch (e: Exception) {
         android.util.Log.e("BackupSettings", "Error restoring from ZIP: ${e.message}")
         Result.failure(e)
-    }
-}
-
-@Composable
-private fun SimpleBackupHistoryItem(backup: CloudBackupManager.BackupInfo) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = backup.fileName,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            
-            Text(
-                text = dateFormat.format(Date(backup.timestamp)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        
-        Icon(
-            imageVector = Icons.Default.Storage,
-            contentDescription = "Local backup",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
     }
 }
 

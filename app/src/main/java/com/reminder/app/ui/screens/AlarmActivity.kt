@@ -45,6 +45,7 @@ import com.reminder.app.R
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 class AlarmActivity : ComponentActivity() {
     
@@ -580,11 +581,13 @@ fun AlarmScreen(
         AlertLevel.URGENT -> Color(0xFF8B0000) // Dark Red
     }
     
+    @OptIn(ExperimentalFoundationApi::class)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
             .padding(24.dp)
+            @OptIn(ExperimentalFoundationApi::class)
             .pointerInteropFilter { motionEvent ->
                 when (motionEvent.action) {
                     android.view.MotionEvent.ACTION_DOWN,
@@ -596,7 +599,7 @@ fun AlarmScreen(
                     }
                     else -> false
                 }
-            },
+            }
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -754,27 +757,15 @@ fun AlarmScreen(
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
-i }/}
             }
-i }/}
         }
-i }/}
-        } // Close transparent overlay Box
-i }/}
     } // Close main Box
-i }/}
 }
-i }/}
 
-i }/}
 // Helper functions for alert level configuration
-i }/}
 private fun loadAlertLevelConfig(context: Context): AlertLevelConfig {
-i }/}
     val prefs = context.getSharedPreferences("alert_level_config", Context.MODE_PRIVATE)
-i }/}
     val json = prefs.getString("alert_level_config", null)
-i }/}
     return if (json != null) {
         try {
             AlertLevelConfig.Companion.fromJson(json)
