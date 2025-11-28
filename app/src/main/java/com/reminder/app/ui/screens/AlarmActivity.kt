@@ -46,6 +46,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 class AlarmActivity : ComponentActivity() {
     
@@ -581,25 +583,19 @@ fun AlarmScreen(
         AlertLevel.URGENT -> Color(0xFF8B0000) // Dark Red
     }
     
-    @OptIn(ExperimentalFoundationApi::class)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
             .padding(24.dp)
-            @OptIn(ExperimentalFoundationApi::class)
-            .pointerInteropFilter { motionEvent ->
-                when (motionEvent.action) {
-                    android.view.MotionEvent.ACTION_DOWN,
-                    android.view.MotionEvent.ACTION_MOVE,
-                    android.view.MotionEvent.ACTION_UP -> {
-                        android.util.Log.d("AlarmActivity", "=== SCREEN TOUCHED (POINTER INTEROP) - CALLING STOP SOUND ===")
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = { _ ->
+                        android.util.Log.d("AlarmActivity", "=== SCREEN TOUCHED (POINTER INPUT) - CALLING STOP SOUND ===")
                         onStopSound()
-                        true // Consume the event
                     }
-                    else -> false
-                }
-            }
+                )
+            },
         contentAlignment = Alignment.Center
     ) {
         Card(
