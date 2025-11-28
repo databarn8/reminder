@@ -54,9 +54,30 @@ class GoogleSignInHelper(private val context: Context) {
     fun handleSignInResult(task: Task<GoogleSignInAccount>): Boolean {
         return try {
             val account = task.getResult(ApiException::class.java)
+            android.util.Log.d("GoogleSignInHelper", "Sign-in successful, account: ${account?.email}")
             _signInState.value = SignInState.Success
             true
         } catch (e: ApiException) {
+            android.util.Log.e("GoogleSignInHelper", "Sign-in failed with error: ${e.statusCode} - ${e.message}")
+            e.printStackTrace()
+            
+            // Log specific error details
+            when (e.statusCode) {
+                10 -> {
+                    android.util.Log.e("GoogleSignInHelper", "DEVELOPER_ERROR: This usually means the OAuth client ID is invalid or not properly configured")
+                    android.util.Log.e("GoogleSignInHelper", "Please check that the client ID in strings.xml matches your Google Cloud Console project")
+                }
+                12501 -> {
+                    android.util.Log.e("GoogleSignInHelper", "SIGN_IN_FAILED: General sign-in failure")
+                }
+                12502 -> {
+                    android.util.Log.e("GoogleSignInHelper", "SIGN_IN_CANCELLED: User cancelled the sign-in flow")
+                }
+                else -> {
+                    android.util.Log.e("GoogleSignInHelper", "Unknown error code: ${e.statusCode}")
+                }
+            }
+            
             _signInState.value = SignInState.Error
             false
         }

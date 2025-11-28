@@ -66,18 +66,27 @@ class CloudBackupManager(private val context: Context) {
     suspend fun signInWithGoogle(accountName: String? = null): Result<Boolean> {
         return try {
             _authStatus.value = AuthStatus.Idle
+            android.util.Log.d("CloudBackupManager", "signInWithGoogle called")
             
             // Check if already signed in
-            if (googleSignInHelper.isSignedIn()) {
+            val signedIn = googleSignInHelper.isSignedIn()
+            android.util.Log.d("CloudBackupManager", "googleSignInHelper.isSignedIn(): $signedIn")
+            
+            if (signedIn) {
+                val account = googleSignInHelper.getSignedInAccount()
+                android.util.Log.d("CloudBackupManager", "Signed in account: ${account?.email}")
+                
                 _authStatus.value = AuthStatus.SignedIn
                 // Initialize Drive service
                 initializeDriveService()
                 Result.success(true)
             } else {
+                android.util.Log.d("CloudBackupManager", "Not signed in")
                 _authStatus.value = AuthStatus.SignedOut
                 Result.failure(Exception("Not signed in. Please sign in through the app's main authentication flow."))
             }
         } catch (e: Exception) {
+            android.util.Log.e("CloudBackupManager", "Exception in signInWithGoogle: ${e.message}")
             _authStatus.value = AuthStatus.Error
             Result.failure(e)
         }
@@ -100,8 +109,21 @@ class CloudBackupManager(private val context: Context) {
                 // Note: In a real implementation, you would need to properly initialize
                 // the Drive service with the Google Account credentials
                 // This is a simplified version that would need proper OAuth2 setup
-                android.util.Log.d("CloudBackupManager", "Drive service initialization would happen here for account: ${account.email}")
-                // driveService = DriveServiceBuilder(...) // Actual implementation would go here
+                // Create credentials using the signed-in account
+                val credential = com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential.usingOAuth2(
+                    context, listOf(DriveScopes.DRIVE_FILE)
+                )
+                credential.selectedAccount = account.account
+                
+                // Build Drive service
+                val transport = com.google.api.client.http.javanet.NetHttpTransport()
+                val jsonFactory = GsonFactory.getDefaultInstance()
+                
+                driveService = Drive.Builder(transport, jsonFactory, credential)
+                    .setApplicationName("Reminder App")
+                    .build()
+                
+                android.util.Log.d("CloudBackupManager", "Drive service initialized successfully for account: ${account.email}")
             }
         } catch (e: Exception) {
             android.util.Log.e("CloudBackupManager", "Error initializing Drive service: ${e.message}")
@@ -129,23 +151,32 @@ class CloudBackupManager(private val context: Context) {
     // Google Drive Backup Methods
     suspend fun backupToGoogleDrive(reminders: List<Reminder>): Result<String> {
         return try {
+            android.util.Log.d("CloudBackupManager", "backupToGoogleDrive called with ${reminders.size} reminders")
+            
             if (!isSignedIn()) {
+                android.util.Log.d("CloudBackupManager", "Not signed in for Google Drive backup")
                 _backupStatus.value = BackupStatus.AuthRequired
                 return Result.failure(Exception("Not signed in to Google Drive"))
             }
+            
+            android.util.Log.d("CloudBackupManager", "Drive service is null: ${driveService == null}")
             
             _backupStatus.value = BackupStatus.BackingUp
             
             // Create local backup first
             val localResult = smartBackupToLocal(reminders)
             if (localResult.isFailure) {
+                android.util.Log.e("CloudBackupManager", "Local backup failed: ${localResult.exceptionOrNull()?.message}")
                 _backupStatus.value = BackupStatus.Error
                 return Result.failure(localResult.exceptionOrNull() ?: Exception("Local backup failed"))
             }
             
             // Upload to Google Drive
             val backupFile = File(localResult.getOrNull() ?: "")
+            android.util.Log.d("CloudBackupManager", "Created local backup file: ${backupFile.absolutePath}")
+            
             val driveFileId = uploadToGoogleDrive(backupFile)
+            android.util.Log.d("CloudBackupManager", "Upload result, driveFileId: $driveFileId")
             
             if (driveFileId != null) {
                 _backupStatus.value = BackupStatus.Success
@@ -155,6 +186,8 @@ class CloudBackupManager(private val context: Context) {
                 Result.failure(Exception("Failed to upload to Google Drive"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("CloudBackupManager", "Exception in backupToGoogleDrive: ${e.message}")
+            e.printStackTrace()
             _backupStatus.value = BackupStatus.Error
             Result.failure(e)
         }
@@ -248,6 +281,8 @@ class CloudBackupManager(private val context: Context) {
     
     private suspend fun uploadToGoogleDrive(file: File): String? {
         return try {
+            android.util.Log.d("CloudBackupManager", "uploadToGoogleDrive called for file: ${file.absolutePath}")
+            
             if (driveService == null) {
                 android.util.Log.e("CloudBackupManager", "Drive service not initialized")
                 return null
@@ -259,6 +294,8 @@ class CloudBackupManager(private val context: Context) {
                 android.util.Log.e("CloudBackupManager", "Failed to get or create app folder")
                 return null
             }
+            
+            android.util.Log.d("CloudBackupManager", "App folder ID: ${appFolder.id}")
             
             // Check if file with same name already exists
             val existingFile = findFileInFolder(file.name, appFolder.id)
@@ -286,9 +323,11 @@ class CloudBackupManager(private val context: Context) {
             uploadedFile.id
         } catch (e: GoogleJsonResponseException) {
             android.util.Log.e("CloudBackupManager", "Google Drive API error: ${e.details.message}")
+            e.printStackTrace()
             null
         } catch (e: Exception) {
             android.util.Log.e("CloudBackupManager", "Error uploading to Google Drive: ${e.message}")
+            e.printStackTrace()
             null
         }
     }

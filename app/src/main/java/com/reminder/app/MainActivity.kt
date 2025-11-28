@@ -18,6 +18,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import com.reminder.app.data.ReminderDatabase
 import com.reminder.app.data.Reminder
 import com.reminder.app.repository.ReminderRepository
@@ -108,6 +111,16 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    private val storagePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            android.util.Log.d("MainActivity", "Storage permission granted")
+        } else {
+            android.util.Log.w("MainActivity", "Storage permission denied")
+        }
+    }
+    
     private val alarmPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -121,7 +134,20 @@ class MainActivity : ComponentActivity() {
     private fun initSignInLauncher() {
         signInLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            googleSignInHelper.handleSignInResult(task)
+            val success = googleSignInHelper.handleSignInResult(task)
+            android.util.Log.d("MainActivity", "Google Sign-In result: success=$success")
+            
+            // If sign-in was successful, initialize CloudBackupManager
+            if (success) {
+                android.util.Log.d("MainActivity", "Sign-in successful, initializing CloudBackupManager")
+                // Get the CloudBackupManager instance and initialize Drive service
+                val cloudBackupManager = com.reminder.app.utils.CloudBackupManager(this)
+                
+                // Initialize in a coroutine context
+                GlobalScope.launch {
+                    cloudBackupManager.signInWithGoogle()
+                }
+            }
         }
     }
 
@@ -164,6 +190,28 @@ class MainActivity : ComponentActivity() {
                 systemAlertWindowPermissionLauncher.launch(Manifest.permission.SYSTEM_ALERT_WINDOW)
             } else {
                 android.util.Log.d("MainActivity", "SYSTEM_ALERT_WINDOW permission already granted")
+            }
+        }
+        
+        // Request storage permission for file picker (Android 11+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                // Request manage external storage permission
+                try {
+                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Error launching storage permission settings: ${e.message}")
+                    // Fallback to app settings
+                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    startActivity(intent)
+                }
+            }
+        } else {
+            // For older Android versions, request regular storage permission
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                storagePermissionLauncher.launch(android.Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
         

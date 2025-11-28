@@ -138,4 +138,19 @@ class ReminderViewModel(
             }
         }
     }
+    
+    /**
+     * Insert a single reminder (used for restore operations)
+     */
+    fun insertReminder(reminder: Reminder) {
+        viewModelScope.launch {
+            try {
+                repository.insertReminder(reminder)
+                // Schedule alarm for the restored reminder
+                NotificationScheduler.scheduleReminder(application, reminder)
+            } catch (e: Exception) {
+                android.util.Log.e("ReminderViewModel", "Failed to insert reminder: ${e.message}")
+            }
+        }
+    }
 }

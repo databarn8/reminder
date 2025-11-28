@@ -1,4 +1,10 @@
 <resources>
     <string name="app_name">Reminder App</string>
-    <string name="default_web_client_id">your_web_client_id_here</string>
+    <!-- Note: For Google Drive backup to work, you need to:
+         1. Create a project in Google Cloud Console
+         2. Enable Google Drive API
+         3. Create OAuth 2.0 credentials
+         4. Replace the placeholder below with your actual web client ID -->
+    <!-- This is a placeholder client ID - replace with your actual Google OAuth client ID -->
+    <string name="default_web_client_id">1034943217893-abc123def456ghi789jkl012mno345pqr.apps.googleusercontent.com</string>
 </resources>
