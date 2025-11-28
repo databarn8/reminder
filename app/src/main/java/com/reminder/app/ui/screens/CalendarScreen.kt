@@ -51,7 +51,6 @@ fun CalendarScreen(
     onReminderClick: (Reminder) -> Unit,
     onAddReminderWithDate: (LocalDate) -> Unit = { onAddReminder() }
 ) {
-    android.util.Log.d("CalendarTest", "Enhanced CalendarScreen called!")
     val reminders by viewModel.reminders.collectAsState()
     var currentDate by remember { mutableStateOf(LocalDate.now()) }
     var currentViewType by remember { mutableStateOf(CalendarViewType.MONTHLY) }
@@ -267,7 +266,10 @@ fun DailyView(
                 text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                textAlign = TextAlign.Center
             )
             
             Text(
@@ -348,7 +350,10 @@ fun WeeklyView(
                 text = currentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                textAlign = TextAlign.Center
             )
             
             LazyVerticalGrid(
@@ -695,7 +700,10 @@ fun YearlyView(
                 text = currentDate.format(DateTimeFormatter.ofPattern("yyyy")),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                textAlign = TextAlign.Center
             )
             
             LazyVerticalGrid(
