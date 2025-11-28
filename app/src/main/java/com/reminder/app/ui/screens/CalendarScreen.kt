@@ -73,7 +73,7 @@ fun CalendarScreen(
                 title = {
                     Text(
                         text = when (currentViewType) {
-                            CalendarViewType.DAILY -> currentDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+                            CalendarViewType.DAILY -> "" // Remove title for daily view
                             CalendarViewType.WEEKLY -> "" // Remove title for weekly view
                             CalendarViewType.MONTHLY -> "" // Remove title for monthly view
                             CalendarViewType.YEARLY -> "" // Remove title for yearly view
