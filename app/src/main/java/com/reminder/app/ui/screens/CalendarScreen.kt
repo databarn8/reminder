@@ -192,6 +192,16 @@ fun CalendarScreen(
                 )
             }
 
+            // Show Year Month text for monthly view
+            if (currentViewType == CalendarViewType.MONTHLY) {
+                Text(
+                    text = "${currentDate.year} ${currentDate.month.toString().take(3)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             
             // Show different views based on selected view type
