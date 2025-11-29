@@ -78,54 +78,61 @@ fun extractCategory(text: String): String {
 }
 
 fun extractTime(text: String): String {
+    // Only return time-related strings if they're explicitly mentioned as separate words
+    // Use word boundaries to avoid false positives
+    val words = text.lowercase().split(Regex("\\s+"))
+    
     return when {
-        text.contains("today", ignoreCase = true) -> {
+        words.contains("today") && !words.contains("tomorrow") -> {
             when {
-                text.contains("morning", ignoreCase = true) -> "Today Morning"
-                text.contains("afternoon", ignoreCase = true) -> "Today Afternoon"
-                text.contains("evening", ignoreCase = true) -> "Today Evening"
-                text.contains("night", ignoreCase = true) -> "Tonight"
+                words.contains("morning") -> "Today Morning"
+                words.contains("afternoon") -> "Today Afternoon"
+                words.contains("evening") -> "Today Evening"
+                words.contains("night") -> "Tonight"
                 else -> "Today"
             }
         }
-        text.contains("tomorrow", ignoreCase = true) -> {
+        words.contains("tomorrow") -> {
             when {
-                text.contains("morning", ignoreCase = true) -> "Tomorrow Morning"
-                text.contains("afternoon", ignoreCase = true) -> "Tomorrow Afternoon"
-                text.contains("evening", ignoreCase = true) -> "Tomorrow Evening"
-                text.contains("night", ignoreCase = true) -> "Tomorrow Night"
+                words.contains("morning") -> "Tomorrow Morning"
+                words.contains("afternoon") -> "Tomorrow Afternoon"
+                words.contains("evening") -> "Tomorrow Evening"
+                words.contains("night") -> "Tomorrow Night"
                 else -> "Tomorrow"
             }
         }
-        text.contains("next week", ignoreCase = true) -> "Next Week"
-        text.contains("monday", ignoreCase = true) -> "Monday"
-        text.contains("tuesday", ignoreCase = true) -> "Tuesday"
-        text.contains("wednesday", ignoreCase = true) -> "Wednesday"
-        text.contains("thursday", ignoreCase = true) -> "Thursday"
-        text.contains("friday", ignoreCase = true) -> "Friday"
-        text.contains("saturday", ignoreCase = true) -> "Saturday"
-        text.contains("sunday", ignoreCase = true) -> "Sunday"
-        text.contains("morning", ignoreCase = true) -> "Morning"
-        text.contains("afternoon", ignoreCase = true) -> "Afternoon"
-        text.contains("evening", ignoreCase = true) -> "Evening"
-        text.contains("night", ignoreCase = true) -> "Night"
+        words.contains("next") && words.contains("week") -> "Next Week"
+        words.contains("monday") -> "Monday"
+        words.contains("tuesday") -> "Tuesday"
+        words.contains("wednesday") -> "Wednesday"
+        words.contains("thursday") -> "Thursday"
+        words.contains("friday") -> "Friday"
+        words.contains("saturday") -> "Saturday"
+        words.contains("sunday") -> "Sunday"
+        words.contains("morning") -> "Morning"
+        words.contains("afternoon") -> "Afternoon"
+        words.contains("evening") -> "Evening"
+        words.contains("night") -> "Night"
         else -> ""
     }
 }
 
 fun extractDay(text: String): String {
-    val lowerText = text.lowercase()
+    // Only return day-related strings if they're explicitly mentioned as separate words
+    // Use word boundaries to avoid false positives
+    val words = text.lowercase().split(Regex("\\s+"))
+    
     return when {
-        lowerText.contains("today") -> "Today"
-        lowerText.contains("tomorrow") -> "Tomorrow"
-        lowerText.contains("monday") -> "Monday"
-        lowerText.contains("tuesday") -> "Tuesday"
-        lowerText.contains("wednesday") -> "Wednesday"
-        lowerText.contains("thursday") -> "Thursday"
-        lowerText.contains("friday") -> "Friday"
-        lowerText.contains("saturday") -> "Saturday"
-        lowerText.contains("sunday") -> "Sunday"
-        lowerText.contains("next week") -> "Next Week"
+        words.contains("today") && !words.contains("tomorrow") -> "Today"
+        words.contains("tomorrow") -> "Tomorrow"
+        words.contains("monday") -> "Monday"
+        words.contains("tuesday") -> "Tuesday"
+        words.contains("wednesday") -> "Wednesday"
+        words.contains("thursday") -> "Thursday"
+        words.contains("friday") -> "Friday"
+        words.contains("saturday") -> "Saturday"
+        words.contains("sunday") -> "Sunday"
+        words.contains("next") && words.contains("week") -> "Next Week"
         else -> ""
     }
 }
