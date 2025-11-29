@@ -1598,7 +1598,7 @@ fun InputScreen(
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 5, // Expandable up to 5 lines for longer content
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 12.sp // Smaller font to fit more text
+                            fontSize = 14.sp // Slightly larger font for better readability
                         ),
                         placeholder = {
                             Text(

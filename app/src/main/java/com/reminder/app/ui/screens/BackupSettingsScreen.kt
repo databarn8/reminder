@@ -461,6 +461,84 @@ fun BackupSettingsScreen(
                 }
             }
             
+            // Email Backup Options
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Email Backup",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Text(
+                            text = "Email your reminders as backup or share with others:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        var emailStatus by remember { mutableStateOf("") }
+                        
+                        // Email button
+                        Button(
+                            onClick = {
+                                GlobalScope.launch {
+                                    try {
+                                        emailStatus = "Creating backup..."
+                                        val remindersList = reminders.toList()
+                                        
+                                        // Create zipped backup file with all reminders
+                                        val backupFile = createZippedBackupFileForEmail(context, remindersList)
+                                        
+                                        emailStatus = "Sending email..."
+                                        
+                                        // Create email intent with backup file attached
+                                        val emailIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "message/rfc822"
+                                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Reminder App Backup - ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())}")
+                                            putExtra(android.content.Intent.EXTRA_TEXT, "Please find attached your zipped reminder backup file with ${remindersList.size} reminders.")
+                                            
+                                            // Attach backup file
+                                            val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                backupFile
+                                            )
+                                            putExtra(android.content.Intent.EXTRA_STREAM, fileUri)
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        
+                                        // Launch email client
+                                        context.startActivity(android.content.Intent.createChooser(emailIntent, "Send backup via email"))
+                                        emailStatus = "Email sent successfully!"
+                                        android.util.Log.d("BackupSettings", "Email backup sent successfully")
+                                        
+                                    } catch (e: Exception) {
+                                        emailStatus = "Email error: ${e.message}"
+                                        android.util.Log.e("BackupSettings", "Email backup error: ${e.message}")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Email Reminders")
+                        }
+                        
+                        if (emailStatus.isNotEmpty()) {
+                            Text(
+                                text = emailStatus,
+                                color = if (emailStatus.contains("success")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            
             // Restore Backup Section
             item {
                 Card {
@@ -607,6 +685,65 @@ private fun restoreFromZippedBackup(context: android.content.Context, zipFileUri
         android.util.Log.e("BackupSettings", "Error restoring from ZIP: ${e.message}")
         Result.failure(e)
     }
+}
+
+/**
+ * Create a zipped backup file with all reminders for email attachment
+ */
+private fun createZippedBackupFileForEmail(context: android.content.Context, reminders: List<Reminder>): File {
+    val fileName = "reminder_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.zip"
+    
+    // Create JSON backup data
+    val jsonArray = org.json.JSONArray()
+    reminders.forEach { reminder ->
+        val jsonObject = org.json.JSONObject().apply {
+            put("id", reminder.id)
+            put("content", reminder.content)
+            put("category", reminder.category)
+            put("importance", reminder.importance)
+            put("reminderTime", reminder.reminderTime)
+            put("whenDay", reminder.whenDay)
+            put("whenTime", reminder.whenTime)
+            put("repeatType", reminder.repeatType)
+            put("repeatInterval", reminder.repeatInterval)
+            put("isActive", reminder.isActive)
+            put("voiceInput", reminder.voiceInput)
+            put("isProcessed", reminder.isProcessed)
+            put("triggerPoints", reminder.triggerPoints)
+            put("repeatPattern", reminder.repeatPattern)
+            put("alertConfig", reminder.alertConfig)
+            put("alertLevel", reminder.alertLevel)
+            put("createdAt", reminder.createdAt)
+        }
+        jsonArray.put(jsonObject)
+    }
+    
+    val backupObject = org.json.JSONObject().apply {
+        put("version", "1.0")
+        put("exportedAt", System.currentTimeMillis())
+        put("exportedBy", "Reminder App")
+        put("reminders", jsonArray)
+    }
+    
+    // Create JSON file first
+    val jsonFileName = "reminder_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+    val jsonFile = File(context.cacheDir, jsonFileName)
+    jsonFile.writeText(backupObject.toString(2))
+    
+    // Create ZIP file containing the JSON
+    val zipFile = File(context.cacheDir, fileName)
+    java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
+        val entry = java.util.zip.ZipEntry(jsonFileName)
+        entry.time = System.currentTimeMillis()
+        zos.putNextEntry(entry)
+        zos.write(jsonFile.readBytes())
+        zos.closeEntry()
+    }
+    
+    // Clean up the temporary JSON file
+    jsonFile.delete()
+    
+    return zipFile
 }
 
 private fun formatFileSize(bytes: Long): String {
