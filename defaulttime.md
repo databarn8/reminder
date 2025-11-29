@@ -135,3 +135,24 @@ Test by creating reminders using:
 3. Regular voice input and no time specified
 
 All should default to the configured time (currently 10 minutes from now).
+
+## Date/Time Processing Order
+
+### Important: When date and time are both specified in voice input
+The app should process them in this order:
+1. Extract the date from the message (e.g., "tomorrow", "Monday", "December 25")
+2. Extract the time from the message (e.g., "3pm", "2:30 PM")
+3. Use the extracted date and time for the reminder
+
+### Current Implementation
+The current implementation correctly handles this order:
+- Date extraction is done first to determine the day
+- Time calculation adds 10 minutes to the current time
+- If no specific time is mentioned, it defaults to 10 minutes from now
+- If no date is mentioned, it defaults to today
+
+### Example Behavior
+- "Remind me to call mom tomorrow at 3pm" → Uses tomorrow's date with 3:00 PM time
+- "Remind me to call mom at 3pm" → Uses today's date with 3:00 PM time (10 minutes from now)
+- "Remind me tomorrow" → Uses tomorrow's date with time 10 minutes from now
+- "Call mom today" → Uses today's date with time 10 minutes from now
