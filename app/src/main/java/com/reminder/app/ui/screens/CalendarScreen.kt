@@ -499,7 +499,10 @@ fun MonthlyView(
     val yearMonth = YearMonth.from(currentDate)
     val daysInMonth = yearMonth.lengthOfMonth()
     val firstDayOfMonth = currentDate.withDayOfMonth(1)
-    val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7
+    // Fix: Convert dayOfWeek (1=Monday, 7=Sunday) to 0-based index with Sunday=6
+    // Java's DayOfWeek: Monday=1, Tuesday=2, ..., Sunday=7
+    // We want: Monday=0, Tuesday=1, ..., Saturday=5, Sunday=6
+    val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value - 1  // This correctly maps Monday(1)->0, Tuesday(2)->1, ..., Sunday(7)->6
     val calendarDays = (0 until firstDayOfWeek).map { null } + (1..daysInMonth).toList()
     val dayHeaders = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
     

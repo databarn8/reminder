@@ -27,6 +27,7 @@ import com.reminder.app.ui.screens.EmailSettingsScreen
 import com.reminder.app.ui.screens.InputScreen
 import com.reminder.app.ui.screens.ReminderListScreen
 import com.reminder.app.ui.screens.AlertSettingsScreenFixed
+import com.reminder.app.ui.screens.ArchiveRestoreScreen
 import com.reminder.app.ui.screens.BackupSettingsScreen
 import com.reminder.app.ui.screens.SettingsScreen
 import com.reminder.app.ui.theme.ReminderAppTheme
@@ -39,6 +40,7 @@ import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.utils.ScreenFlashOverlay
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.viewmodel.ReminderViewModel
+import com.reminder.app.viewmodel.ArchiveRestoreViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.remember
 import com.reminder.app.data.EmailPreferencesManager
@@ -225,6 +227,10 @@ class MainActivity : ComponentActivity() {
                                     android.util.Log.d("BackupTest", "Backup settings button clicked!")
                                     navController.navigate("backup_settings")
                                 },
+                                onArchiveRestoreClick = {
+                                    android.util.Log.d("ArchiveTest", "Archive/Restore button clicked!")
+                                    navController.navigate("archive_restore")
+                                },
                                 onSettingsClick = {
                                     android.util.Log.d("SettingsTest", "General settings button clicked!")
                                     navController.navigate("settings")
@@ -333,6 +339,16 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("backup_settings")
                                 }
                             )
+                        }
+                        
+                        composable("archive_restore") {
+                            android.util.Log.d("ArchiveTest", "Archive/Restore screen navigated!")
+                            val database = ReminderDatabase.getDatabase(this@MainActivity)
+                            val repository = ReminderRepository(database.reminderDao())
+                            val archiveViewModel: ArchiveRestoreViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
+                            )
+                            ArchiveRestoreScreen(viewModel = archiveViewModel)
                         }
                         
                     }

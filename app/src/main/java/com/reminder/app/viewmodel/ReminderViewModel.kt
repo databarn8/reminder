@@ -108,6 +108,107 @@ class ReminderViewModel(
         }
     }
 
+    // Archive-related methods
+    fun archiveReminder(id: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.archiveReminder(id)
+                // Cancel alarm for archived reminder
+                NotificationScheduler.cancelReminder(application, id)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to archive reminder: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun unarchiveReminder(id: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.unarchiveReminder(id)
+                // Get the reminder to reschedule its alarm
+                val reminder = repository.getReminderById(id)
+                if (reminder != null && reminder.reminderTime > System.currentTimeMillis()) {
+                    NotificationScheduler.scheduleReminder(application, reminder)
+                }
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to unarchive reminder: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun softDeleteReminder(id: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.softDeleteReminder(id)
+                // Cancel alarm for soft-deleted reminder
+                NotificationScheduler.cancelReminder(application, id)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to delete reminder: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun restoreReminder(id: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.restoreReminder(id)
+                // Get the reminder to reschedule its alarm
+                val reminder = repository.getReminderById(id)
+                if (reminder != null && reminder.reminderTime > System.currentTimeMillis()) {
+                    NotificationScheduler.scheduleReminder(application, reminder)
+                }
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to restore reminder: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    suspend fun getArchivedReminders(): List<Reminder> {
+        return repository.getArchivedRemindersOnce()
+    }
+
+    suspend fun getDeletedReminders(): List<Reminder> {
+        return repository.getDeletedRemindersOnce()
+    }
+
+    suspend fun getRemindersOlderThan(weeks: Int): List<Reminder> {
+        return repository.getRemindersOlderThan(weeks)
+    }
+
+    fun purgeSelectedReminders(ids: List<Int>) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.purgeSelectedReminders(ids)
+                // Cancel alarms for all purged reminders
+                ids.forEach { id ->
+                    NotificationScheduler.cancelReminder(application, id)
+                }
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to purge reminders: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     suspend fun getReminderById(id: Int): Reminder? {
         val reminder = repository.getReminderById(id)
         android.util.Log.d("ReminderViewModel", "Retrieved reminder by id=$id: reminderTime=${reminder?.reminderTime}, whenDay=${reminder?.whenDay}, whenTime=${reminder?.whenTime}")
@@ -117,7 +218,7 @@ class ReminderViewModel(
     fun clearError() {
         _errorMessage.value = null
     }
-    
+
     /**
      * Schedule alarms for all existing reminders once (called on app startup)
      */

@@ -64,7 +64,11 @@ data class Reminder(
     val triggerPoints: String? = null, // JSON string of trigger points, defaults to AT_DUE_TIME if null
     val repeatPattern: String? = null, // JSON string for RepeatPattern data structure
     val alertConfig: String? = null, // JSON string for AlertConfig data structure
-    val alertLevel: String = "LOW" // Alert level: LOW, MEDIUM, HIGH, URGENT
+    val alertLevel: String = "LOW", // Alert level: LOW, MEDIUM, HIGH, URGENT
+    val isArchived: Boolean = false, // Whether the reminder is archived (soft deleted)
+    val archivedDate: Long? = null, // When the reminder was archived
+    val isDeleted: Boolean = false, // Whether the reminder is marked as deleted
+    val deletedDate: Long? = null // When the reminder was marked as deleted
 ) {
     fun getTriggerPointsList(): List<TriggerPoint> {
         return try {

@@ -1,0 +1,473 @@
+package com.reminder.app.ui.screens
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.reminder.app.data.Reminder
+import com.reminder.app.ui.theme.ReminderAppTheme
+import com.reminder.app.viewmodel.ArchiveRestoreViewModel
+import java.text.SimpleDateFormat
+import java.util.*
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ArchiveRestoreScreen(
+    viewModel: ArchiveRestoreViewModel = viewModel()
+) {
+    val archivedReminders by viewModel.archivedReminders.collectAsState()
+    val deletedReminders by viewModel.deletedReminders.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val selectedReminders by viewModel.selectedReminders.collectAsState()
+    val backupStatus by viewModel.backupStatus.collectAsState()
+    
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("Archived", "Deleted")
+    
+    var showPurgeDialog by remember { mutableStateOf(false) }
+    var purgeOption by remember { mutableStateOf("") }
+    
+    LaunchedEffect(Unit) {
+        viewModel.refreshData()
+    }
+    
+    // Show error message if present
+    errorMessage?.let { message ->
+        LaunchedEffect(message) {
+            // Handle error display (could show a snackbar or dialog)
+            viewModel.clearError()
+        }
+    }
+    
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Top bar with tabs
+        TabRow(selectedTabIndex = selectedTab) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    text = { Text(title) }
+                )
+            }
+        }
+        
+        // Action buttons
+        if (selectedReminders.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (selectedTab == 0) { // Archived tab
+                    Button(
+                        onClick = { viewModel.unarchiveSelected() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Unarchive Selected")
+                    }
+                } else { // Deleted tab
+                    Button(
+                        onClick = { viewModel.restoreSelected() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Restore Selected")
+                    }
+                }
+                
+                Button(
+                    onClick = { viewModel.clearSelection() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+                ) {
+                    Text("Clear Selection")
+                }
+            }
+        }
+        
+        // Purge options
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Purge Options",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { 
+                            purgeOption = "week"
+                            showPurgeDialog = true
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Purge > 1 Week")
+                    }
+                    
+                    Button(
+                        onClick = { 
+                            purgeOption = "month"
+                            showPurgeDialog = true
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Purge > 1 Month")
+                    }
+                }
+                
+                if (selectedReminders.isNotEmpty()) {
+                    Button(
+                        onClick = { 
+                            purgeOption = "selected"
+                            showPurgeDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Purge Selected (${selectedReminders.size})")
+                    }
+                }
+            }
+        }
+        
+        // Content based on selected tab
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            when (selectedTab) {
+                0 -> ArchivedRemindersList(
+                    archivedReminders = archivedReminders,
+                    selectedReminders = selectedReminders,
+                    backupStatus = backupStatus,
+                    onReminderClick = { id -> viewModel.toggleSelection(id) },
+                    onSelectAll = { viewModel.selectAll() }
+                )
+                1 -> DeletedRemindersList(
+                    deletedReminders = deletedReminders,
+                    selectedReminders = selectedReminders,
+                    backupStatus = backupStatus,
+                    onReminderClick = { id -> viewModel.toggleSelection(id) },
+                    onSelectAll = { viewModel.selectAll() }
+                )
+            }
+        }
+    }
+    
+    // Purge confirmation dialog
+    if (showPurgeDialog) {
+        AlertDialog(
+            onDismissRequest = { showPurgeDialog = false },
+            title = { Text("Confirm Purge") },
+            text = {
+                Text(
+                    when (purgeOption) {
+                        "week" -> "This will permanently delete all archived and deleted reminders older than one week. This action cannot be undone."
+                        "month" -> "This will permanently delete all archived and deleted reminders older than one month. This action cannot be undone."
+                        "selected" -> "This will permanently delete ${selectedReminders.size} selected reminders. This action cannot be undone."
+                        else -> "This action cannot be undone."
+                    }
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        when (purgeOption) {
+                            "week" -> viewModel.purgeOldReminders(1)
+                            "month" -> viewModel.purgeOldReminders(4)
+                            "selected" -> viewModel.purgeSelected()
+                        }
+                        showPurgeDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Purge")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showPurgeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ArchivedRemindersList(
+    archivedReminders: List<Reminder>,
+    selectedReminders: Set<Int>,
+    backupStatus: Map<Int, Boolean>,
+    onReminderClick: (Int) -> Unit,
+    onSelectAll: () -> Unit
+) {
+    Column {
+        if (archivedReminders.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${archivedReminders.size} Archived Items",
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = onSelectAll) {
+                    Text("Select All")
+                }
+            }
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                items(archivedReminders) { reminder ->
+                    ArchivedReminderItem(
+                        reminder = reminder,
+                        isSelected = selectedReminders.contains(reminder.id),
+                        hasBackup = backupStatus[reminder.id] ?: false,
+                        onClick = { onReminderClick(reminder.id) }
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No archived reminders")
+            }
+        }
+    }
+}
+
+@Composable
+fun DeletedRemindersList(
+    deletedReminders: List<Reminder>,
+    selectedReminders: Set<Int>,
+    backupStatus: Map<Int, Boolean>,
+    onReminderClick: (Int) -> Unit,
+    onSelectAll: () -> Unit
+) {
+    Column {
+        if (deletedReminders.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${deletedReminders.size} Deleted Items",
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(onClick = onSelectAll) {
+                    Text("Select All")
+                }
+            }
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                items(deletedReminders) { reminder ->
+                    DeletedReminderItem(
+                        reminder = reminder,
+                        isSelected = selectedReminders.contains(reminder.id),
+                        hasBackup = backupStatus[reminder.id] ?: false,
+                        onClick = { onReminderClick(reminder.id) }
+                    )
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No deleted reminders")
+            }
+        }
+    }
+}
+
+@Composable
+fun ArchivedReminderItem(
+    reminder: Reminder,
+    isSelected: Boolean,
+    hasBackup: Boolean,
+    onClick: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                           else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clickable { onClick() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() }
+            )
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            ) {
+                Text(
+                    text = reminder.content,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Text(
+                    text = "Archived: ${dateFormat.format(Date(reminder.archivedDate ?: 0))}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                
+                Text(
+                    text = "Created: ${dateFormat.format(Date(reminder.createdAt))}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+            
+            if (hasBackup) {
+                Icon(
+                    imageVector = Icons.Default.CloudDone,
+                    contentDescription = "Backup exists",
+                    tint = Color.Green,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = "No backup",
+                    tint = Color.Red,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeletedReminderItem(
+    reminder: Reminder,
+    isSelected: Boolean,
+    hasBackup: Boolean,
+    onClick: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+    
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                           else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .clickable { onClick() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() }
+            )
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            ) {
+                Text(
+                    text = reminder.content,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                
+                Text(
+                    text = "Deleted: ${dateFormat.format(Date(reminder.deletedDate ?: 0))}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                
+                Text(
+                    text = "Created: ${dateFormat.format(Date(reminder.createdAt))}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+            
+            if (hasBackup) {
+                Icon(
+                    imageVector = Icons.Default.CloudDone,
+                    contentDescription = "Backup exists",
+                    tint = Color.Green,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = "No backup",
+                    tint = Color.Red,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+        }
+    }
+}

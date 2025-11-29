@@ -27,4 +27,38 @@ class ReminderRepository(
     suspend fun deleteReminderById(id: Int) = reminderDao.deleteReminderById(id)
 
     suspend fun deleteAllReminders() = reminderDao.deleteAllReminders()
+    
+    // Archive-related methods
+    fun getArchivedReminders(): Flow<List<Reminder>> = reminderDao.getArchivedReminders()
+    
+    fun getDeletedReminders(): Flow<List<Reminder>> = reminderDao.getDeletedReminders()
+    
+    suspend fun getArchivedRemindersOnce(): List<Reminder> = reminderDao.getArchivedRemindersSync()
+    
+    suspend fun getDeletedRemindersOnce(): List<Reminder> = reminderDao.getDeletedRemindersSync()
+    
+    suspend fun archiveReminder(id: Int) {
+        reminderDao.archiveReminder(id, System.currentTimeMillis())
+    }
+    
+    suspend fun unarchiveReminder(id: Int) {
+        reminderDao.unarchiveReminder(id)
+    }
+    
+    suspend fun softDeleteReminder(id: Int) {
+        reminderDao.softDeleteReminder(id, System.currentTimeMillis())
+    }
+    
+    suspend fun restoreReminder(id: Int) {
+        reminderDao.restoreReminder(id)
+    }
+    
+    suspend fun getRemindersOlderThan(weeks: Int): List<Reminder> {
+        val cutoffDate = System.currentTimeMillis() - (weeks * 7 * 24 * 60 * 60 * 1000L)
+        return reminderDao.getRemindersOlderThan(cutoffDate)
+    }
+    
+    suspend fun purgeSelectedReminders(ids: List<Int>) {
+        reminderDao.purgeReminders(ids)
+    }
 }

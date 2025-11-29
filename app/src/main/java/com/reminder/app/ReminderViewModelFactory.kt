@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.reminder.app.repository.ReminderRepository
 import com.reminder.app.viewmodel.ReminderViewModel
+import com.reminder.app.viewmodel.ArchiveRestoreViewModel
 
 class ReminderViewModelFactory(
     private val repository: ReminderRepository,
@@ -15,6 +16,10 @@ class ReminderViewModelFactory(
         if (modelClass.isAssignableFrom(ReminderViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return ReminderViewModel(repository, application) as T
+        }
+        if (modelClass.isAssignableFrom(ArchiveRestoreViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return ArchiveRestoreViewModel(repository, application) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

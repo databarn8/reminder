@@ -704,6 +704,10 @@ class CloudBackupManager(private val context: Context) {
                 put("alertConfig", reminder.alertConfig)
                 put("alertLevel", reminder.alertLevel)
                 put("createdAt", reminder.createdAt)
+                put("isArchived", reminder.isArchived)
+                put("archivedDate", reminder.archivedDate)
+                put("isDeleted", reminder.isDeleted)
+                put("deletedDate", reminder.deletedDate)
             }
             jsonArray.put(jsonObject)
         }
@@ -717,6 +721,54 @@ class CloudBackupManager(private val context: Context) {
         }
         
         return backupObject.toString(2)
+    }
+    
+    // Methods for individual reminder backup (needed for archive functionality)
+    suspend fun doesBackupExist(reminderId: Int): Boolean {
+        return try {
+            val backupDir = File(context.filesDir, "backups")
+            if (!backupDir.exists()) {
+                return false
+            }
+            
+            // Look for backup files that might contain this reminder
+            backupDir.listFiles()?.forEach { file ->
+                if (file.name.endsWith(".json")) {
+                    val backupData = file.readText()
+                    val reminders = parseBackupData(backupData)
+                    if (reminders.any { it.id == reminderId }) {
+                        return true
+                    }
+                }
+            }
+            false
+        } catch (e: Exception) {
+            android.util.Log.e("CloudBackupManager", "Error checking backup existence: ${e.message}")
+            false
+        }
+    }
+    
+    suspend fun createBackup(reminder: Reminder) {
+        try {
+            val backupDir = File(context.filesDir, "backups")
+            if (!backupDir.exists()) {
+                backupDir.mkdirs()
+            }
+            
+            // Create a backup file for this specific reminder
+            val fileName = "reminder_${reminder.id}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
+            val backupFile = File(backupDir, fileName)
+            
+            val backupData = createBackupData(listOf(reminder))
+            FileOutputStream(backupFile).use { fos ->
+                fos.write(backupData.toByteArray())
+            }
+            
+            android.util.Log.d("CloudBackupManager", "Created backup for reminder ${reminder.id}: ${fileName}")
+        } catch (e: Exception) {
+            android.util.Log.e("CloudBackupManager", "Error creating backup for reminder ${reminder.id}: ${e.message}")
+            throw e
+        }
     }
     
     private fun parseBackupData(backupData: String): List<Reminder> {
@@ -743,14 +795,18 @@ class CloudBackupManager(private val context: Context) {
                 repeatPattern = if (jsonObject.has("repeatPattern")) jsonObject.optString("repeatPattern") else null,
                 alertConfig = if (jsonObject.has("alertConfig")) jsonObject.optString("alertConfig") else null,
                 alertLevel = jsonObject.optString("alertLevel", "LOW"),
-                createdAt = jsonObject.optLong("createdAt", System.currentTimeMillis())
+                createdAt = jsonObject.optLong("createdAt", System.currentTimeMillis()),
+                isArchived = jsonObject.optBoolean("isArchived", false),
+                archivedDate = jsonObject.optLong("archivedDate", 0),
+                isDeleted = jsonObject.optBoolean("isDeleted", false),
+                deletedDate = jsonObject.optLong("deletedDate", 0)
             )
             reminders.add(reminder)
         }
         
         return reminders
     }
-}
+} 
 
 // Worker for automatic smart backup (supports both local and cloud)
 class AutoBackupWorker(

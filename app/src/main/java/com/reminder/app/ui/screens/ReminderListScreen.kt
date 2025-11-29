@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -80,6 +81,7 @@ fun ReminderListScreen(
     onEmailSettingsClick: () -> Unit = {},
     onAlertSettingsClick: () -> Unit = {},
     onBackupSettingsClick: () -> Unit = {},
+    onArchiveRestoreClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -129,6 +131,14 @@ fun ReminderListScreen(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Alert Settings"
+                        )
+                    }
+                    // Archive/Restore button
+                    IconButton(onClick = onArchiveRestoreClick) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = "Archive/Restore",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     // Email settings removed - already accessible via main settings
@@ -279,6 +289,7 @@ fun ReminderListScreen(
                             onClick = { onReminderClick(reminder) },
                             onEditClick = { onEditClick(reminder) },
                             onDeleteClick = { viewModel.deleteReminder(reminder) },
+                            onArchiveClick = { viewModel.archiveReminder(reminder.id) },
                             onEmailClick = { onEmailClick(reminder) },
                             onAlertLevelChange = { reminder, level ->
                                 val updatedReminder = reminder.copy(
@@ -303,6 +314,7 @@ fun ReminderCard(
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onArchiveClick: () -> Unit = {},
     onEmailClick: () -> Unit,
     onAlertLevelChange: (Reminder, AlertLevel) -> Unit = { _, _ -> }
 ) {
@@ -389,6 +401,14 @@ fun ReminderCard(
                                 )
                             }
                         }
+                    }
+                    
+                    IconButton(onClick = onArchiveClick) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = "Archive",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                     
                     IconButton(onClick = onEditClick) {
