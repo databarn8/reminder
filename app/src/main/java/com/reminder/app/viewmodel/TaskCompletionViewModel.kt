@@ -2,8 +2,7 @@ package com.reminder.app.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModel.compose.viewModel
-import androidx.lifecycle.viewModel.viewModel.initializer.ViewModelInitializer
+import androidx.lifecycle.viewModelScope
 import com.reminder.app.data.Reminder
 import com.reminder.app.repository.ReminderRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +35,7 @@ class TaskCompletionViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val completed = repository.getCompletedReminders()
+                val completed = repository.getCompletedRemindersOnce()
                 _completedReminders.value = completed
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -68,14 +67,31 @@ class TaskCompletionViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                _selectedReminders.value.forEach { id ->
-                    repository.restoreReminder(id)
+                val selectedIds = _selectedReminders.value.toList()
+                selectedIds.forEach { id ->
+                    repository.unmarkReminderAsCompleted(id)
                 }
                 clearSelection()
                 loadCompletedReminders()
-                _errorMessage.value = "Restored ${_selectedReminders.value.size} reminders"
+                _errorMessage.value = "Restored ${selectedIds.size} reminders"
+                _isLoading.value = false
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to restore reminders: ${e.message}"
+                _isLoading.value = false
+            }
+        }
+    }
+    
+    fun unmarkReminderAsCompleted(id: Int) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.unmarkReminderAsCompleted(id)
+                loadCompletedReminders()
+                _errorMessage.value = "Reminder restored successfully"
+                _isLoading.value = false
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to restore reminder: ${e.message}"
                 _isLoading.value = false
             }
         }

@@ -68,7 +68,10 @@ data class Reminder(
     val isArchived: Boolean = false, // Whether the reminder is archived (soft deleted)
     val archivedDate: Long? = null, // When the reminder was archived
     val isDeleted: Boolean = false, // Whether the reminder is marked as deleted
-    val deletedDate: Long? = null // When the reminder was marked as deleted
+    val deletedDate: Long? = null, // When the reminder was marked as deleted
+    val isCompleted: Boolean = false,     // Track if task is completed
+    val completedDate: Long? = null,       // When the task was marked as completed
+    val completionNotes: String? = null       // Optional notes about completion
 ) {
     fun getTriggerPointsList(): List<TriggerPoint> {
         return try {

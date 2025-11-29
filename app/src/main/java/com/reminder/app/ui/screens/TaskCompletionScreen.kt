@@ -1,5 +1,6 @@
 package com.reminder.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +25,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskCompletionScreen(
-    viewModel: TaskCompletionViewModel = viewModel()
+    viewModel: TaskCompletionViewModel,
+    onBack: () -> Unit = {}
 ) {
     val completedReminders by viewModel.completedReminders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -70,23 +72,25 @@ fun TaskCompletionScreen(
                 ) {
                     Text(
                         text = "Completed Tasks",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        style = MaterialTheme.typography.headlineSmall
                     )
                     
                     Spacer(modifier = Modifier.width(8.dp))
                     
                     Text(
                         text = "${completedReminders.size} tasks",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                titleContentColor = MaterialTheme.colorScheme.onPrimary
-            )
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            }
         )
         
         Spacer(modifier = Modifier.height(8.dp))
@@ -129,7 +133,7 @@ fun TaskCompletionScreen(
             
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
-                thickness = 1.dp
+                thickness = 1
             )
         }
         
@@ -185,7 +189,7 @@ fun TaskCompletionScreen(
                         isSelected = selectedReminders.contains(reminder.id),
                         dateFormat = dateFormat,
                         onSelect = { viewModel.toggleSelection(reminder.id) },
-                        onRestore = { viewModel.restoreReminder(reminder.id) }
+                        onRestore = { viewModel.unmarkReminderAsCompleted(reminder.id) }
                     )
                 }
             }
@@ -246,7 +250,6 @@ fun CompletedTaskCard(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
-                            .clickable { onRestore() }
                             .padding(8.dp)
                     )
                 }
@@ -292,7 +295,7 @@ fun CompletedTaskCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = dateFormat.format(Date(reminder.completedDate ?: 0)),
+                        text = dateFormat.format(Date(reminder.completedDate ?: System.currentTimeMillis())),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )

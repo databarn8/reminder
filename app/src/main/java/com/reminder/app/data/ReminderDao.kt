@@ -65,4 +65,20 @@ interface ReminderDao {
     
     @Query("DELETE FROM reminders WHERE id IN (:ids)")
     suspend fun purgeReminders(ids: List<Int>)
+    
+    // Task completion related queries
+    @Query("SELECT * FROM reminders WHERE isCompleted = 1 ORDER BY completedDate DESC")
+    fun getCompletedReminders(): Flow<List<Reminder>>
+    
+    @Query("SELECT * FROM reminders WHERE isCompleted = 1 ORDER BY completedDate DESC")
+    suspend fun getCompletedRemindersSync(): List<Reminder>
+    
+    @Query("UPDATE reminders SET isCompleted = 1, completedDate = :timestamp, completionNotes = :notes WHERE id = :id")
+    suspend fun markReminderAsCompleted(id: Int, timestamp: Long, notes: String? = null)
+    
+    @Query("UPDATE reminders SET isCompleted = 0, completedDate = NULL, completionNotes = NULL WHERE id = :id")
+    suspend fun unmarkReminderAsCompleted(id: Int)
+    
+    @Query("UPDATE reminders SET isCompleted = 1, completedDate = :timestamp, completionNotes = :notes, isArchived = 1, archivedDate = :timestamp WHERE id = :id")
+    suspend fun markReminderAsCompletedWithArchive(id: Int, timestamp: Long, notes: String? = null)
 }
