@@ -282,7 +282,7 @@ class MainActivity : ComponentActivity() {
                                         content = confirmedText,
                                         category = "Personal",
                                         importance = 5,
-                                        reminderTime = System.currentTimeMillis() + 10 * 60 * 1000, // 10 minutes from now
+                                        reminderTime = System.currentTimeMillis() + 15 * 60 * 1000, // 15 minutes from now
                                         repeatType = "none",
                                         repeatInterval = 1
                                     )
@@ -386,7 +386,7 @@ class MainActivity : ComponentActivity() {
             content = text,
             category = "Personal",
             importance = 5,
-            reminderTime = System.currentTimeMillis() + 10 * 60 * 1000, // 10 minutes from now
+            reminderTime = System.currentTimeMillis() + 15 * 60 * 1000, // 15 minutes from now
             repeatType = "none",
             repeatInterval = 1
         )

@@ -1069,7 +1069,7 @@ fun InputScreen(
     
     // Enhanced date/time state
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var selectedTime by remember { mutableStateOf(LocalTime.now().plusMinutes(10)) }
+    var selectedTime by remember { mutableStateOf(LocalTime.now().plusMinutes(15)) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showTimeSuggestions by remember { mutableStateOf(false) }
@@ -1270,13 +1270,60 @@ fun InputScreen(
                     val extractedDay = extractDay(content)
                     val extractedTime = extractTimeOnly(content)
                     
-                    // Only auto-fill day and time fields when they are currently blank
-                    // This preserves user input in these fields
-                    if (whenDay.isBlank()) {
-                        whenDay = extractedDay
+                    // Always update day and time fields when detected in message
+                    // But preserve user input if they've manually set different values
+                    if (extractedDay.isNotBlank()) {
+                        // Only update if the detected day is different from current
+                        if (whenDay != extractedDay) {
+                            whenDay = extractedDay
+                            Log.d("InputScreen", "Updated whenDay from '$whenDay' to '$extractedDay' based on message content")
+                            
+                            // Also update selectedDate to match the new day
+                            val newDate = when (extractedDay) {
+                                "Today" -> LocalDate.now()
+                                "Tomorrow" -> LocalDate.now().plusDays(1)
+                                "Monday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.MONDAY)
+                                "Tuesday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.TUESDAY)
+                                "Wednesday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.WEDNESDAY)
+                                "Thursday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.THURSDAY)
+                                "Friday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.FRIDAY)
+                                "Saturday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.SATURDAY)
+                                "Sunday" -> getNextWeekday(LocalDate.now(), java.time.DayOfWeek.SUNDAY)
+                                else -> selectedDate // Keep current date if no match
+                            }
+                            selectedDate = newDate
+                            Log.d("InputScreen", "Updated selectedDate to '$newDate' based on extractedDay='$extractedDay'")
+                        }
                     }
-                    if (whenTime.isBlank()) {
-                        whenTime = extractedTime
+                    if (extractedTime.isNotBlank()) {
+                        // Only update if the detected time is different from current
+                        if (whenTime != extractedTime) {
+                            whenTime = extractedTime
+                            Log.d("InputScreen", "Updated whenTime from '$whenTime' to '$extractedTime' based on message content")
+                            
+                            // Also update selectedTime if a specific time was detected
+                            val timePattern = Regex("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", RegexOption.IGNORE_CASE)
+                            val timeMatch = timePattern.find(extractedTime)
+                            if (timeMatch != null) {
+                                try {
+                                    val hour = timeMatch.groupValues[1].toInt()
+                                    val minute = timeMatch.groupValues[2].takeIf { it.isNotBlank() }?.toInt() ?: 0
+                                    val ampm = timeMatch.groupValues[3].lowercase()
+                                    
+                                    val parsedHour = when {
+                                        ampm == "am" -> if (hour == 12) 0 else hour
+                                        ampm == "pm" -> if (hour == 12) 12 else hour + 12
+                                        hour <= 12 -> hour // Default to AM for single digit hours
+                                        else -> hour
+                                    }
+                                    
+                                    selectedTime = LocalTime.of(parsedHour.coerceIn(0, 23), minute.coerceIn(0, 59))
+                                    Log.d("InputScreen", "Updated selectedTime to '$selectedTime' based on extractedTime='$extractedTime'")
+                                } catch (e: Exception) {
+                                    Log.d("InputScreen", "Failed to parse time: ${e.message}")
+                                }
+                            }
+                        }
                     }
                     
                     // Don't auto-update selectedDate when day info is detected

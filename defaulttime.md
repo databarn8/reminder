@@ -136,6 +136,13 @@ Test by creating reminders using:
 
 All should default to the configured time (currently 10 minutes from now).
 
+## Current Behavior
+The app currently displays the recording time (now + 10 minutes) on message pages when:
+1. A reminder is created without explicit time specification
+2. The reminder is being edited in the setup page
+
+This provides clear feedback to users about when the reminder will trigger.
+
 ## Date/Time Processing Order
 
 ### Important: When date and time are both specified in voice input
@@ -156,3 +163,44 @@ The current implementation correctly handles this order:
 - "Remind me to call mom at 3pm" → Uses today's date with 3:00 PM time (10 minutes from now)
 - "Remind me tomorrow" → Uses tomorrow's date with time 10 minutes from now
 - "Call mom today" → Uses today's date with time 10 minutes from now
+## Final Requirements for Default Time Behavior
+
+Based on user testing and feedback, the following behavior is required for all input methods (typed, Google voice input, and regular voice input):
+
+### 1. Recording Time Display
+- Always record and show the current time ("now") on the individual reminder view page
+- Display the recording time on message pages
+- This provides clear feedback about when the reminder was created
+
+### 2. Date Handling in Setup Page
+- **If a date is explicitly set in the message**: Show that date in the setup page
+- **If no date is set in the message**: Default to "today" in the setup page
+
+### 3. Time Handling in Setup Page
+- **If a time is explicitly set in the message**: Show that time in the setup page
+- **If no time is set in the message**: Default to "now + 15 minutes" in the setup page
+
+### 4. Dynamic Updates
+- When users add/update/delete date or time in the message, the setup page should update accordingly
+- The system needs to parse messages to detect explicit date/time references
+- Keep the setup page synchronized with any message changes
+
+### Implementation Notes
+
+This means the system needs to:
+- Parse messages to detect explicit date/time references using regex patterns
+- Use current time as the recording time (always displayed)
+- Apply smart defaults only when no explicit date/time is found in the message
+- Default time should be 15 minutes from now (not 10 minutes as previously implemented)
+- Keep the UI synchronized between message input and setup page
+
+### Files to Update
+
+To implement this behavior, the following files need to be modified:
+1. `InputScreen.kt` - Update default time from 10 minutes to 15 minutes
+2. `MainActivity.kt` - Update Google voice input default time from 10 minutes to 15 minutes
+3. `SmartVoiceProcessor.kt` - Update regular voice processing default time from 10 minutes to 15 minutes
+4. Update message parsing logic to properly detect explicit date/time references
+5. Ensure UI synchronization between message and setup page
+
+---

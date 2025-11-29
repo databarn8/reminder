@@ -238,7 +238,7 @@ class SmartVoiceProcessor {
         
         return when {
             timeString?.contains("today", ignoreCase = true) == true -> {
-                now + (10 * 60 * 1000) // 10 minutes from now for today
+                now + (15 * 60 * 1000) // 15 minutes from now for today
             }
             timeString?.contains("tomorrow", ignoreCase = true) == true -> {
                 now + (24 * 60 * 60 * 1000) // Tomorrow
@@ -259,7 +259,7 @@ class SmartVoiceProcessor {
                 now + (30 * 24 * 60 * 60 * 1000) // Next month for monthly
             }
             else -> {
-                now + (10 * 60 * 1000) // Default to today at 10 minutes from now
+                now + (15 * 60 * 1000) // Default to today at 15 minutes from now
             }
         }
     }
