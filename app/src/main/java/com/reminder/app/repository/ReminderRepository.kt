@@ -61,4 +61,21 @@ class ReminderRepository(
     suspend fun purgeSelectedReminders(ids: List<Int>) {
         reminderDao.purgeReminders(ids)
     }
+    
+    // Task completion related methods
+    fun getCompletedReminders(): Flow<List<Reminder>> = reminderDao.getCompletedReminders()
+    
+    suspend fun getCompletedRemindersOnce(): List<Reminder> = reminderDao.getCompletedRemindersSync()
+    
+    suspend fun markReminderAsCompleted(id: Int, completionNotes: String? = null) {
+        reminderDao.markReminderAsCompleted(id, System.currentTimeMillis(), completionNotes)
+    }
+    
+    suspend fun unmarkReminderAsCompleted(id: Int) {
+        reminderDao.unmarkReminderAsCompleted(id)
+    }
+    
+    suspend fun markReminderAsCompletedWithArchive(id: Int, completionNotes: String? = null) {
+        reminderDao.markReminderAsCompletedWithArchive(id, System.currentTimeMillis(), completionNotes)
+    }
 }

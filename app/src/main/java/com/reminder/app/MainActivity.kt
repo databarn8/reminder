@@ -30,6 +30,7 @@ import com.reminder.app.ui.screens.AlertSettingsScreenFixed
 import com.reminder.app.ui.screens.ArchiveRestoreScreen
 import com.reminder.app.ui.screens.BackupSettingsScreen
 import com.reminder.app.ui.screens.SettingsScreen
+import com.reminder.app.ui.screens.TaskCompletionScreen
 import com.reminder.app.ui.theme.ReminderAppTheme
 import com.reminder.app.utils.EnhancedEmailService
 import com.reminder.app.utils.GoogleSignInHelper
@@ -41,6 +42,7 @@ import com.reminder.app.utils.ScreenFlashOverlay
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.viewmodel.ReminderViewModel
 import com.reminder.app.viewmodel.ArchiveRestoreViewModel
+import com.reminder.app.viewmodel.TaskCompletionViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.remember
 import com.reminder.app.data.EmailPreferencesManager
@@ -227,6 +229,10 @@ class MainActivity : ComponentActivity() {
                                     android.util.Log.d("BackupTest", "Backup settings button clicked!")
                                     navController.navigate("backup_settings")
                                 },
+                                onTaskCompletionClick = {
+                                    android.util.Log.d("TaskCompletionTest", "Task Completion button clicked!")
+                                    navController.navigate("task_completion")
+                                },
                                 onArchiveRestoreClick = {
                                     android.util.Log.d("ArchiveTest", "Archive/Restore button clicked!")
                                     navController.navigate("archive_restore")
@@ -349,6 +355,19 @@ class MainActivity : ComponentActivity() {
                                 factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
                             )
                             ArchiveRestoreScreen(viewModel = archiveViewModel)
+                        }
+                        
+                        composable("task_completion") {
+                            android.util.Log.d("TaskCompletionTest", "Task Completion screen navigated!")
+                            val database = ReminderDatabase.getDatabase(this@MainActivity)
+                            val repository = ReminderRepository(database.reminderDao())
+                            val taskCompletionViewModel: TaskCompletionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
+                            )
+                            TaskCompletionScreen(
+                                viewModel = taskCompletionViewModel,
+                                onBack = { navController.popBackStack() }
+                            )
                         }
                         
                     }

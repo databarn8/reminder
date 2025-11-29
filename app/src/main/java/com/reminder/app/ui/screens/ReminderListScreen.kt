@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -82,6 +83,7 @@ fun ReminderListScreen(
     onAlertSettingsClick: () -> Unit = {},
     onBackupSettingsClick: () -> Unit = {},
     onArchiveRestoreClick: () -> Unit = {},
+    onTaskCompletionClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -131,6 +133,14 @@ fun ReminderListScreen(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Alert Settings"
+                        )
+                    }
+                    // Task Completion button
+                    IconButton(onClick = onTaskCompletionClick) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Task Completion",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     // Archive/Restore button
@@ -291,6 +301,7 @@ fun ReminderListScreen(
                             onDeleteClick = { viewModel.deleteReminder(reminder) },
                             onArchiveClick = { viewModel.archiveReminder(reminder.id) },
                             onEmailClick = { onEmailClick(reminder) },
+                            onTaskCompleteClick = { viewModel.markReminderAsCompletedWithArchive(reminder.id) },
                             onAlertLevelChange = { reminder, level ->
                                 val updatedReminder = reminder.copy(
                                     alertLevel = level.name
@@ -316,6 +327,7 @@ fun ReminderCard(
     onDeleteClick: () -> Unit,
     onArchiveClick: () -> Unit = {},
     onEmailClick: () -> Unit,
+    onTaskCompleteClick: () -> Unit = {},
     onAlertLevelChange: (Reminder, AlertLevel) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
@@ -403,6 +415,13 @@ fun ReminderCard(
                         }
                     }
                     
+                    IconButton(onClick = onTaskCompleteClick) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Mark as Complete",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = onArchiveClick) {
                         Icon(
                             imageVector = Icons.Default.Archive,

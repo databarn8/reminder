@@ -209,6 +209,62 @@ class ReminderViewModel(
         }
     }
 
+    // Task completion related methods
+    fun markReminderAsCompleted(id: Int, completionNotes: String? = null) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.markReminderAsCompleted(id, completionNotes)
+                // Cancel alarm for completed reminder
+                NotificationScheduler.cancelReminder(application, id)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to mark reminder as completed: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun markReminderAsCompletedWithArchive(id: Int, completionNotes: String? = null) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.markReminderAsCompletedWithArchive(id, completionNotes)
+                // Cancel alarm for completed and archived reminder
+                NotificationScheduler.cancelReminder(application, id)
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to mark reminder as completed and archived: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun unmarkReminderAsCompleted(id: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.unmarkReminderAsCompleted(id)
+                // Get the reminder to reschedule its alarm if it's still in the future
+                val reminder = repository.getReminderById(id)
+                if (reminder != null && reminder.reminderTime > System.currentTimeMillis()) {
+                    NotificationScheduler.scheduleReminder(application, reminder)
+                }
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to unmark reminder as completed: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    suspend fun getCompletedReminders(): List<Reminder> {
+        return repository.getCompletedRemindersOnce()
+    }
+
     suspend fun getReminderById(id: Int): Reminder? {
         val reminder = repository.getReminderById(id)
         android.util.Log.d("ReminderViewModel", "Retrieved reminder by id=$id: reminderTime=${reminder?.reminderTime}, whenDay=${reminder?.whenDay}, whenTime=${reminder?.whenTime}")
