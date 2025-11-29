@@ -176,6 +176,10 @@ fun calculateReminderTime(text: String): Long {
     val oneHour = 60 * 60 * 1000L
     val calendar = java.util.Calendar.getInstance()
     
+    // Add debug logging to understand what's happening
+    android.util.Log.d("calculateReminderTime", "Input text: '$text'")
+    android.util.Log.d("calculateReminderTime", "Current time: $now")
+    
     // Extract specific time like "3pm", "3:00", etc.
     val timePattern = Regex("(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?", RegexOption.IGNORE_CASE)
     val timeMatch = timePattern.find(text)
@@ -212,6 +216,9 @@ fun calculateReminderTime(text: String): Long {
         else -> now + (10 * 60 * 1000L) // Default to today at 10 minutes from now
     }
     
+    android.util.Log.d("calculateReminderTime", "Base time: $baseTime")
+    android.util.Log.d("calculateReminderTime", "Target hour: $targetHour, Target minute: $targetMinute")
+    
     // If we have a specific time, set it
     return if (targetHour != -1) {
         val targetCalendar = java.util.Calendar.getInstance()
@@ -221,15 +228,19 @@ fun calculateReminderTime(text: String): Long {
         targetCalendar.set(java.util.Calendar.SECOND, 0)
         targetCalendar.set(java.util.Calendar.MILLISECOND, 0)
         
+        android.util.Log.d("calculateReminderTime", "Specific time detected, target time: ${targetCalendar.timeInMillis}")
+        
         // If time is in the past for today, move to tomorrow
         if (text.contains("today", ignoreCase = true) && targetCalendar.timeInMillis <= now) {
             targetCalendar.add(java.util.Calendar.DAY_OF_MONTH, 1)
+            android.util.Log.d("calculateReminderTime", "Time in past for today, moved to tomorrow: ${targetCalendar.timeInMillis}")
         }
         
         targetCalendar.timeInMillis
     } else {
         // If no specific time, just use the base time (which already includes 10 minutes)
         // Don't add any additional time offsets
+        android.util.Log.d("calculateReminderTime", "No specific time, using base time: $baseTime")
         baseTime
     }
 }
@@ -1058,7 +1069,7 @@ fun InputScreen(
     
     // Enhanced date/time state
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var selectedTime by remember { mutableStateOf(LocalTime.NOON) }
+    var selectedTime by remember { mutableStateOf(LocalTime.now().plusMinutes(10)) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showTimeSuggestions by remember { mutableStateOf(false) }
