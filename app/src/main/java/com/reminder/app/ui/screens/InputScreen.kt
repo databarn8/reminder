@@ -221,15 +221,9 @@ fun calculateReminderTime(text: String): Long {
         
         targetCalendar.timeInMillis
     } else {
-        // If no specific time and no time-of-day keywords, use the base time as is
-        // This ensures "today at 10 minutes from now" works correctly
-        when {
-            text.contains("morning", ignoreCase = true) -> baseTime + 9 * oneHour
-            text.contains("afternoon", ignoreCase = true) -> baseTime + 14 * oneHour
-            text.contains("evening", ignoreCase = true) -> baseTime + 18 * oneHour
-            text.contains("night", ignoreCase = true) -> baseTime + 20 * oneHour
-            else -> baseTime // Use base time directly (already includes 10 minutes offset)
-        }
+        // If no specific time, just use the base time (which already includes 10 minutes)
+        // Don't add any additional time offsets
+        baseTime
     }
 }
 
