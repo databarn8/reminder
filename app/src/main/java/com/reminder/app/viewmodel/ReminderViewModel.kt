@@ -28,8 +28,8 @@ class ReminderViewModel(
 
     init {
         loadReminders()
-        // Schedule alarms for existing reminders
-        scheduleAllReminders()
+        // Schedule alarms for existing reminders once
+        scheduleAllRemindersOnce()
     }
 
     private fun loadReminders() {
@@ -119,21 +119,23 @@ class ReminderViewModel(
     }
     
     /**
-     * Schedule alarms for all existing reminders (called on app startup)
+     * Schedule alarms for all existing reminders once (called on app startup)
      */
-    private fun scheduleAllReminders() {
+    private fun scheduleAllRemindersOnce() {
         viewModelScope.launch {
             try {
-                repository.getAllReminders().collect { reminderList ->
-                    reminderList.forEach { reminder ->
-                        // Only schedule future reminders
-                        if (reminder.reminderTime > System.currentTimeMillis()) {
-                            NotificationScheduler.scheduleReminder(application, reminder)
-                        }
+                // Use first() instead of collect() to get reminders only once
+                val reminderList = repository.getAllRemindersOnce()
+                reminderList.forEach { reminder ->
+                    // Only schedule future reminders
+                    if (reminder.reminderTime > System.currentTimeMillis()) {
+                        android.util.Log.d("ReminderViewModel", "Scheduling alarm for existing reminder: ${reminder.content} at ${java.util.Date(reminder.reminderTime)}")
+                        NotificationScheduler.scheduleReminder(application, reminder)
                     }
                 }
             } catch (e: Exception) {
                 // Log error but don't crash app
+                android.util.Log.e("ReminderViewModel", "Error scheduling existing reminders: ${e.message}")
                 e.printStackTrace()
             }
         }

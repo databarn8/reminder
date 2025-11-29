@@ -7,6 +7,8 @@ class ReminderRepository(
     private val reminderDao: ReminderDao
 ) {
     fun getAllReminders(): Flow<List<Reminder>> = reminderDao.getAllReminders()
+    
+    suspend fun getAllRemindersOnce(): List<Reminder> = reminderDao.getAllRemindersSync()
 
     suspend fun getReminderById(id: Int): Reminder? = reminderDao.getReminderById(id)
 

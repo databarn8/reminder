@@ -28,13 +28,17 @@ class BootReceiver : BroadcastReceiver() {
                     val database = ReminderDatabase.getDatabase(context)
                     val repository = ReminderRepository(database.reminderDao())
                     
-                    repository.getAllReminders().collect { reminders ->
-                        reminders.forEach { reminder ->
-                            // Only schedule future reminders
-                            if (reminder.reminderTime > System.currentTimeMillis()) {
-                                Log.d("BootReceiver", "Rescheduling alarm for: ${reminder.content}")
-                                NotificationScheduler.scheduleReminder(context, reminder)
-                            }
+                    // Use getAllRemindersOnce() instead of collect() to prevent multiple executions
+                    val reminders = repository.getAllRemindersOnce()
+                    Log.d("BootReceiver", "Rescheduling ${reminders.size} alarms after ${intent.action}")
+                    
+                    reminders.forEach { reminder ->
+                        // Only schedule future reminders
+                        if (reminder.reminderTime > System.currentTimeMillis()) {
+                            Log.d("BootReceiver", "Rescheduling alarm for: ${reminder.content} at ${java.util.Date(reminder.reminderTime)}")
+                            NotificationScheduler.scheduleReminder(context, reminder)
+                        } else {
+                            Log.d("BootReceiver", "Skipping past reminder: ${reminder.content} at ${java.util.Date(reminder.reminderTime)}")
                         }
                     }
                 } catch (e: Exception) {
