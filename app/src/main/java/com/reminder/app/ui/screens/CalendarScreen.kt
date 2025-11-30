@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ViewWeek
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +50,8 @@ fun CalendarScreen(
     onBack: () -> Unit,
     onAddReminder: () -> Unit,
     onReminderClick: (Reminder) -> Unit,
-    onAddReminderWithDate: (LocalDate) -> Unit = { onAddReminder() }
+    onAddReminderWithDate: (LocalDate) -> Unit = { onAddReminder() },
+    onHomeClick: () -> Unit = {}
 ) {
     val reminders by viewModel.reminders.collectAsState()
     var currentDate by remember { mutableStateOf(LocalDate.now()) }
@@ -71,17 +73,7 @@ fun CalendarScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = when (currentViewType) {
-                            CalendarViewType.DAILY -> "" // Remove title for daily view
-                            CalendarViewType.WEEKLY -> "" // Remove title for weekly view
-                            CalendarViewType.MONTHLY -> "" // Remove title for monthly view
-                            CalendarViewType.YEARLY -> "" // Remove title for yearly view
-                            else -> "" // Default to no title
-                        },
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // Empty title - no text
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -89,6 +81,15 @@ fun CalendarScreen(
                     }
                 },
                 actions = {
+                    // Home icon
+                    IconButton(onClick = onHomeClick) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Row {
                         // View toggle buttons - icons only
                         FilterChip(

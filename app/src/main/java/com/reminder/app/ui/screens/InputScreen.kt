@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Red
@@ -1044,7 +1045,8 @@ fun InputScreen(
     reminderId: Int?,
     onBack: () -> Unit,
     onConfirm: (String, Long) -> Unit,
-    onCalendarClick: () -> Unit = {}
+    onCalendarClick: () -> Unit = {},
+    onHomeClick: () -> Unit = {}
 ) {
     // State for navigation to alert settings screen
     var showAlertSettings by remember { mutableStateOf(false) }
@@ -1358,12 +1360,7 @@ fun InputScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "📝",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 12.sp // Smaller font for compact display
-                        )
-                    )
+                    // Empty title - no text
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -1371,6 +1368,15 @@ fun InputScreen(
                     }
                 },
                 actions = {
+                    // Home icon
+                    IconButton(onClick = onHomeClick) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     // Configure button in top bar
                     IconButton(onClick = { showAlertSettings = true }) {
                         Icon(

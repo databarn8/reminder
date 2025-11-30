@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +28,8 @@ import java.util.*
 fun TaskCompletionScreen(
     viewModel: TaskCompletionViewModel,
     onBack: () -> Unit = {},
-    onReminderRestored: () -> Unit = {}
+    onReminderRestored: () -> Unit = {},
+    onHomeClick: () -> Unit = {}
 ) {
     val completedReminders by viewModel.completedReminders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -64,31 +66,30 @@ fun TaskCompletionScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top bar with title and stats
+        // Top bar with home icon and stats
         TopAppBar(
             title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Completed Tasks",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    Text(
-                        text = "${completedReminders.size} tasks",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+                // Show task count in title area
+                Text(
+                    text = "${completedReminders.size} tasks",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back"
+                    )
+                }
+            },
+            actions = {
+                // Home icon
+                IconButton(onClick = onHomeClick) {
+                    Icon(
+                        Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -210,114 +211,58 @@ fun CompletedTaskCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelect() },
+            .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
-                MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 8.dp else 2.dp
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                           else MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header with checkbox and restore button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onSelect() },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.width(12.dp))
-                    
-                    Text(
-                        text = "Restore",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .padding(8.dp)
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Content with strikethrough for completed
-            Text(
-                text = reminder.content,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textDecoration = TextDecoration.LineThrough,
-                maxLines = 5,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onSelect() }
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Metadata row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
             ) {
-                Column {
-                    Text(
-                        text = "Category",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = reminder.category,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                Text(
+                    text = reminder.content,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
                 
-                Column {
-                    Text(
-                        text = "Completed",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = dateFormat.format(Date(reminder.completedDate ?: System.currentTimeMillis())),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                Text(
+                    text = "Completed: ${dateFormat.format(Date(reminder.completedDate ?: System.currentTimeMillis()))}",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
                 
-                if (!reminder.completionNotes.isNullOrBlank()) {
-                    Column {
-                        Text(
-                            text = "Notes",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = reminder.completionNotes,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                Text(
+                    text = "Created: ${dateFormat.format(Date(reminder.createdAt))}",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+            }
+            
+            // Restore button
+            IconButton(
+                onClick = onRestore
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Restore,
+                    contentDescription = "Restore",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

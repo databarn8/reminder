@@ -4,8 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +29,9 @@ import java.util.*
 @Composable
 fun ArchiveRestoreScreen(
     viewModel: ArchiveRestoreViewModel = viewModel(),
-    onReminderRestored: () -> Unit = {}
+    onReminderRestored: () -> Unit = {},
+    onHomeClick: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     val archivedReminders by viewModel.archivedReminders.collectAsState()
     val deletedReminders by viewModel.deletedReminders.collectAsState()
@@ -56,16 +61,41 @@ fun ArchiveRestoreScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top bar with tabs
-        TabRow(selectedTabIndex = selectedTab) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = { Text(title) }
-                )
+        // Top bar with back arrow, home icon and tabs
+        TopAppBar(
+            title = {
+                // Empty title - tabs will show the current section
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            },
+            actions = {
+                // Home icon
+                IconButton(onClick = onHomeClick) {
+                    Icon(
+                        Icons.Default.Home,
+                        contentDescription = "Home",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                // Tab navigation
+                Row {
+                    tabs.forEachIndexed { index, title ->
+                        FilterChip(
+                            onClick = { selectedTab = index },
+                            label = { Text(title) },
+                            selected = selectedTab == index,
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        )
+                    }
+                }
             }
-        }
+        )
         
         // Action buttons
         if (selectedReminders.isNotEmpty()) {

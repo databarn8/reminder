@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,7 +85,8 @@ fun ReminderListScreen(
     onBackupSettingsClick: () -> Unit = {},
     onArchiveRestoreClick: () -> Unit = {},
     onTaskCompletionClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onHomeClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val reminders by viewModel.reminders.collectAsState()
@@ -109,15 +111,15 @@ fun ReminderListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Reminders")
-                        if (searchQuery.isNotBlank()) {
-                            Text(
-                                text = "${filteredReminders.size} found",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    // Empty title - no text at all
+                },
+                navigationIcon = {
+                    IconButton(onClick = onHomeClick) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 },
                 actions = {

@@ -240,6 +240,10 @@ class MainActivity : ComponentActivity() {
                                 onSettingsClick = {
                                     android.util.Log.d("SettingsTest", "General settings button clicked!")
                                     navController.navigate("settings")
+                                },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked!")
+                                    // Already on home screen
                                 }
                             )
                         }
@@ -255,6 +259,10 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onAddReminderWithDate = { date ->
                                     navController.navigate("input_screen?selectedDate=${date.toString()}")
+                                },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from calendar!")
+                                    navController.popBackStack("reminder_list", false)
                                 }
                             )
                         }
@@ -262,7 +270,7 @@ class MainActivity : ComponentActivity() {
                         composable("input_screen?reminderId={reminderId}&selectedDate={selectedDate}") { backStackEntry ->
                             val reminderId = backStackEntry.arguments?.getString("reminderId")?.toIntOrNull()
                             val selectedDateString = backStackEntry.arguments?.getString("selectedDate")
-                            val selectedDate = selectedDateString?.let { 
+                            val selectedDate = selectedDateString?.let {
                                 try {
                                     java.time.LocalDate.parse(it)
                                 } catch (e: Exception) {
@@ -279,7 +287,11 @@ class MainActivity : ComponentActivity() {
                                     // This callback is only used for navigation back
                                     navController.popBackStack()
                                 },
-                                onCalendarClick = { navController.navigate("calendar") }
+                                onCalendarClick = { navController.navigate("calendar") },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from input screen!")
+                                    navController.popBackStack("reminder_list", false)
+                                }
                             )
                         }
                         
@@ -343,6 +355,10 @@ class MainActivity : ComponentActivity() {
                                 onBackupSettingsClick = {
                                     android.util.Log.d("SettingsTest", "Navigating to backup settings from settings screen!")
                                     navController.navigate("backup_settings")
+                                },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from settings!")
+                                    navController.popBackStack("reminder_list", false)
                                 }
                             )
                         }
@@ -356,7 +372,12 @@ class MainActivity : ComponentActivity() {
                             )
                             ArchiveRestoreScreen(
                                 viewModel = archiveViewModel,
-                                onReminderRestored = { viewModel.refreshReminders() }
+                                onReminderRestored = { viewModel.refreshReminders() },
+                                onBack = { navController.popBackStack() },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from archive restore!")
+                                    navController.popBackStack("reminder_list", false)
+                                }
                             )
                         }
                         
@@ -370,7 +391,11 @@ class MainActivity : ComponentActivity() {
                             TaskCompletionScreen(
                                 viewModel = taskCompletionViewModel,
                                 onBack = { navController.popBackStack() },
-                                onReminderRestored = { viewModel.refreshReminders() }
+                                onReminderRestored = { viewModel.refreshReminders() },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from task completion!")
+                                    navController.popBackStack("reminder_list", false)
+                                }
                             )
                         }
                         

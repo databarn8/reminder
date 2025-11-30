@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,17 +21,28 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onAlertSettingsClick: () -> Unit = {},
     onEmailSettingsClick: () -> Unit = {},
-    onBackupSettingsClick: () -> Unit = {}
+    onBackupSettingsClick: () -> Unit = {},
+    onHomeClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Settings")
+                    // Empty title - no text
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // Home icon
+                    IconButton(onClick = onHomeClick) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
             )
