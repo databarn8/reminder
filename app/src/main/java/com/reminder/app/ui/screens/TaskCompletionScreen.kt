@@ -264,7 +264,7 @@ fun CompletedTaskCard(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 textDecoration = TextDecoration.LineThrough,
-                maxLines = 3,
+                maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
