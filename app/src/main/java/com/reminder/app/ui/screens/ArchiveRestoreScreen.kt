@@ -130,57 +130,70 @@ fun ArchiveRestoreScreen(
             }
         }
         
-        // Purge options
+        // Purge options - Compact design
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
                 Text(
                     text = "Purge Options",
-                    fontSize = 16.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 6.dp)
                 )
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // Compact buttons with smaller text and height
                     Button(
-                        onClick = { 
+                        onClick = {
                             purgeOption = "week"
                             showPurgeDialog = true
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                     ) {
-                        Text("Purge > 1 Week")
+                        Text(
+                            text = "> 1 Week",
+                            fontSize = 10.sp
+                        )
                     }
                     
                     Button(
-                        onClick = { 
+                        onClick = {
                             purgeOption = "month"
                             showPurgeDialog = true
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                     ) {
-                        Text("Purge > 1 Month")
+                        Text(
+                            text = "> 1 Month",
+                            fontSize = 10.sp
+                        )
                     }
-                }
-                
-                if (selectedReminders.isNotEmpty()) {
-                    Button(
-                        onClick = { 
-                            purgeOption = "selected"
-                            showPurgeDialog = true
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                    ) {
-                        Text("Purge Selected (${selectedReminders.size})")
+                    
+                    if (selectedReminders.isNotEmpty()) {
+                        Button(
+                            onClick = {
+                                purgeOption = "selected"
+                                showPurgeDialog = true
+                            },
+                            modifier = Modifier.weight(1.5f).height(32.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Purge (${selectedReminders.size})",
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
