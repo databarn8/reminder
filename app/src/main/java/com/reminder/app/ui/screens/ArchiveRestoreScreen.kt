@@ -150,7 +150,7 @@ fun ArchiveRestoreScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Even more compact buttons with larger text
+                    // Even more compact buttons with even larger text
                     Button(
                         onClick = {
                             purgeOption = "week"
@@ -161,7 +161,7 @@ fun ArchiveRestoreScreen(
                     ) {
                         Text(
                             text = "> 1 Week",
-                            fontSize = 11.sp
+                            fontSize = 12.sp
                         )
                     }
                     
@@ -175,7 +175,7 @@ fun ArchiveRestoreScreen(
                     ) {
                         Text(
                             text = "> 1 Month",
-                            fontSize = 11.sp
+                            fontSize = 12.sp
                         )
                     }
                     
@@ -191,7 +191,7 @@ fun ArchiveRestoreScreen(
                         ) {
                             Text(
                                 text = "Purge (${selectedReminders.size})",
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
