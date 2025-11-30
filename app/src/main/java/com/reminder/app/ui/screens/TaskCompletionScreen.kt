@@ -26,7 +26,8 @@ import java.util.*
 @Composable
 fun TaskCompletionScreen(
     viewModel: TaskCompletionViewModel,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onReminderRestored: () -> Unit = {}
 ) {
     val completedReminders by viewModel.completedReminders.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -121,7 +122,7 @@ fun TaskCompletionScreen(
                 
                 if (selectedReminders.isNotEmpty()) {
                     Button(
-                        onClick = { viewModel.restoreSelected() },
+                        onClick = { viewModel.restoreSelected(onReminderRestored) },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
                         )
@@ -189,7 +190,7 @@ fun TaskCompletionScreen(
                         isSelected = selectedReminders.contains(reminder.id),
                         dateFormat = dateFormat,
                         onSelect = { viewModel.toggleSelection(reminder.id) },
-                        onRestore = { viewModel.unmarkReminderAsCompleted(reminder.id) }
+                        onRestore = { viewModel.unmarkReminderAsCompleted(reminder.id, onReminderRestored) }
                     )
                 }
             }

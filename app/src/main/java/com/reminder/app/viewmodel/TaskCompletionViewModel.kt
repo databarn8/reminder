@@ -63,7 +63,7 @@ class TaskCompletionViewModel(
         _selectedReminders.value = emptySet()
     }
     
-    fun restoreSelected() {
+    fun restoreSelected(onReminderRestored: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
@@ -73,6 +73,7 @@ class TaskCompletionViewModel(
                 }
                 clearSelection()
                 loadCompletedReminders()
+                onReminderRestored()
                 _errorMessage.value = "Restored ${selectedIds.size} reminders"
                 _isLoading.value = false
             } catch (e: Exception) {
@@ -82,12 +83,13 @@ class TaskCompletionViewModel(
         }
     }
     
-    fun unmarkReminderAsCompleted(id: Int) {
+    fun unmarkReminderAsCompleted(id: Int, onReminderRestored: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 repository.unmarkReminderAsCompleted(id)
                 loadCompletedReminders()
+                onReminderRestored()
                 _errorMessage.value = "Reminder restored successfully"
                 _isLoading.value = false
             } catch (e: Exception) {

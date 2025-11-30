@@ -42,7 +42,7 @@ fun ArchiveRestoreScreen(
     var purgeOption by remember { mutableStateOf("") }
     
     LaunchedEffect(Unit) {
-        viewModel.refreshData()
+        viewModel.refreshData(onReminderRestored)
     }
     
     // Show error message if present
@@ -255,14 +255,76 @@ fun ArchivedRemindersList(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                items(archivedReminders) { reminder ->
-                    ArchivedReminderItem(
-                        reminder = reminder,
-                        isSelected = selectedReminders.contains(reminder.id),
-                        hasBackup = backupStatus[reminder.id] ?: false,
-                        onClick = { onReminderClick(reminder.id) },
-                        onUnarchive = onUnarchive
-                    )
+                // Group reminders by age for better organization
+                val now = System.currentTimeMillis()
+                val oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000L)
+                val oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000L)
+                
+                val recentArchived = archivedReminders.filter { it.archivedDate != null && it.archivedDate!! >= oneWeekAgo }
+                val weekOldArchived = archivedReminders.filter { it.archivedDate != null && it.archivedDate!! < oneWeekAgo && it.archivedDate!! >= oneMonthAgo }
+                val monthOldArchived = archivedReminders.filter { it.archivedDate != null && it.archivedDate!! < oneMonthAgo }
+                
+                // Show recent archived reminders
+                if (recentArchived.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Recent (less than 1 week)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    items(recentArchived) { reminder ->
+                        ArchivedReminderItem(
+                            reminder = reminder,
+                            isSelected = selectedReminders.contains(reminder.id),
+                            hasBackup = backupStatus[reminder.id] ?: false,
+                            onClick = { onReminderClick(reminder.id) },
+                            onUnarchive = onUnarchive
+                        )
+                    }
+                }
+                
+                // Show week old archived reminders
+                if (weekOldArchived.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "1 week to 1 month old",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    items(weekOldArchived) { reminder ->
+                        ArchivedReminderItem(
+                            reminder = reminder,
+                            isSelected = selectedReminders.contains(reminder.id),
+                            hasBackup = backupStatus[reminder.id] ?: false,
+                            onClick = { onReminderClick(reminder.id) },
+                            onUnarchive = onUnarchive
+                        )
+                    }
+                }
+                
+                // Show month old archived reminders
+                if (monthOldArchived.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Older than 1 month",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    items(monthOldArchived) { reminder ->
+                        ArchivedReminderItem(
+                            reminder = reminder,
+                            isSelected = selectedReminders.contains(reminder.id),
+                            hasBackup = backupStatus[reminder.id] ?: false,
+                            onClick = { onReminderClick(reminder.id) },
+                            onUnarchive = onUnarchive
+                        )
+                    }
                 }
             }
         } else {

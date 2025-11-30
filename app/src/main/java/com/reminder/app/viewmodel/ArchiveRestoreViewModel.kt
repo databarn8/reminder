@@ -19,6 +19,9 @@ class ArchiveRestoreViewModel(
     private val _archivedReminders = MutableStateFlow<List<Reminder>>(emptyList())
     val archivedReminders: StateFlow<List<Reminder>> = _archivedReminders.asStateFlow()
     
+    private val _allRemindersForPurge = MutableStateFlow<Pair<List<Reminder>, List<Reminder>>>(Pair(emptyList(), emptyList()))
+    val allRemindersForPurge: StateFlow<Pair<List<Reminder>, List<Reminder>>> = _allRemindersForPurge.asStateFlow()
+    
     private val _deletedReminders = MutableStateFlow<List<Reminder>>(emptyList())
     val deletedReminders: StateFlow<List<Reminder>> = _deletedReminders.asStateFlow()
     
@@ -91,6 +94,12 @@ class ArchiveRestoreViewModel(
     fun refreshData() {
         loadArchivedReminders()
         loadDeletedReminders()
+    }
+    
+    fun refreshData(onReminderRestored: () -> Unit = {}) {
+        loadArchivedReminders()
+        loadDeletedReminders()
+        onReminderRestored()
     }
     
     fun toggleSelection(reminderId: Int) {

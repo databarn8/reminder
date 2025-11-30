@@ -343,9 +343,9 @@ fun ReminderCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
-            // Top row with action icons
+            // Top row with category and action icons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -355,35 +355,40 @@ fun ReminderCard(
                     text = reminder.category,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
                 )
                 
                 Row {
-                    IconButton(onClick = onEmailClick) {
+                    IconButton(
+                        onClick = onEmailClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Email,
                             contentDescription = "Email",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     
                     // Alert level selector
                     var expanded by remember { mutableStateOf(false) }
                     Box {
-                        IconButton(onClick = { expanded = true }) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Notifications,
-                                    contentDescription = "Alert Level",
-                                    tint = when (reminder.getAlertLevelEnum()) {
-                                        AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
-                                        AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
-                                        AlertLevel.URGENT -> MaterialTheme.colorScheme.error
-                                    }
-                                )
-                            }
+                        IconButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Alert Level",
+                                tint = when (reminder.getAlertLevelEnum()) {
+                                    AlertLevel.LOW -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
+                                    AlertLevel.URGENT -> MaterialTheme.colorScheme.error
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                         DropdownMenu(
                             expanded = expanded,
@@ -415,40 +420,56 @@ fun ReminderCard(
                         }
                     }
                     
-                    IconButton(onClick = onTaskCompleteClick) {
+                    IconButton(
+                        onClick = onTaskCompleteClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Mark as Complete",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    IconButton(onClick = onArchiveClick) {
+                    IconButton(
+                        onClick = onArchiveClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Archive,
                             contentDescription = "Archive",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     
-                    IconButton(onClick = onEditClick) {
+                    IconButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     
-                    IconButton(onClick = onDeleteClick) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.error
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             
             // Message content with dynamic font size
             Text(
@@ -459,11 +480,11 @@ fun ReminderCard(
                     MaterialTheme.typography.titleMedium
                 },
                 fontWeight = FontWeight.Bold,
-                maxLines = 3,
+                maxLines = 2,
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             
             // Bottom row with alert level and time
             Row(
@@ -484,26 +505,27 @@ fun ReminderCard(
                         AlertLevel.HIGH -> MaterialTheme.colorScheme.secondary
                         AlertLevel.URGENT -> MaterialTheme.colorScheme.error
                     },
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
                 )
+                
+                // Time display
+                if (reminder.reminderTime == 0L) {
+                    Text(
+                        text = "⚠️ No time",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 1
+                    )
+                } else {
+                    Text(
+                        text = dateFormat.format(Date(reminder.reminderTime)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
             }
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            if (reminder.reminderTime == 0L) {
-                Text(
-                    text = "⚠️ Day/Time not specified",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            } else {
-                Text(
-                    text = dateFormat.format(Date(reminder.reminderTime)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            
         }
     }
 }

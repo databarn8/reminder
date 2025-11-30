@@ -369,7 +369,8 @@ class MainActivity : ComponentActivity() {
                             )
                             TaskCompletionScreen(
                                 viewModel = taskCompletionViewModel,
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onReminderRestored = { viewModel.refreshReminders() }
                             )
                         }
                         
