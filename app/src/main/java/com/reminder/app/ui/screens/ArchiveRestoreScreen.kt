@@ -130,7 +130,7 @@ fun ArchiveRestoreScreen(
             }
         }
         
-        // Purge options - Compact design
+        // Purge options - Compact design with smaller buttons and larger font
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -150,18 +150,18 @@ fun ArchiveRestoreScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Compact buttons with smaller text and height
+                    // Even more compact buttons with larger text
                     Button(
                         onClick = {
                             purgeOption = "week"
                             showPurgeDialog = true
                         },
-                        modifier = Modifier.weight(1f).height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.weight(1f).height(28.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = "> 1 Week",
-                            fontSize = 10.sp
+                            fontSize = 11.sp
                         )
                     }
                     
@@ -170,12 +170,12 @@ fun ArchiveRestoreScreen(
                             purgeOption = "month"
                             showPurgeDialog = true
                         },
-                        modifier = Modifier.weight(1f).height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        modifier = Modifier.weight(1f).height(28.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 1.dp)
                     ) {
                         Text(
                             text = "> 1 Month",
-                            fontSize = 10.sp
+                            fontSize = 11.sp
                         )
                     }
                     
@@ -185,13 +185,13 @@ fun ArchiveRestoreScreen(
                                 purgeOption = "selected"
                                 showPurgeDialog = true
                             },
-                            modifier = Modifier.weight(1.5f).height(32.dp),
+                            modifier = Modifier.weight(1.5f).height(28.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "Purge (${selectedReminders.size})",
-                                fontSize = 10.sp
+                                fontSize = 11.sp
                             )
                         }
                     }
