@@ -244,6 +244,8 @@ class ReminderViewModel(
                 // Cancel alarm for completed and archived reminder
                 NotificationScheduler.cancelReminder(application, id)
                 _errorMessage.value = null
+                // Refresh the main reminders list to remove the completed/archived reminder from display
+                refreshReminders()
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to mark reminder as completed and archived: ${e.message}"
             } finally {
