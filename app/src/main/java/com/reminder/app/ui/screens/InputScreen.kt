@@ -8,6 +8,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Mic
@@ -20,6 +22,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Red
@@ -44,7 +54,9 @@ import android.speech.RecognizerIntent
 import android.util.Log
 import com.reminder.app.utils.SpeechManager
 import com.reminder.app.utils.SmartVoiceProcessor
+import com.reminder.app.utils.FileManager
 import com.reminder.app.viewmodel.ReminderViewModel
+import com.reminder.app.MainActivity
 // import com.reminder.app.ui.components.AlertSettingsComponent // Not used, using AlertSettingsScreenFixed instead
 import com.reminder.app.data.AlertConfig
 import com.reminder.app.data.RepeatPattern
@@ -1053,6 +1065,14 @@ fun InputScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    // File management state
+    val fileManager = remember { FileManager(context) }
+    var showFileMenu by remember { mutableStateOf(false) }
+    var showSavedFilesDialog by remember { mutableStateOf(false) }
+    var showSaveAsDialog by remember { mutableStateOf(false) }
+    var saveAsFileName by remember { mutableStateOf("") }
+    var isFileMode by remember { mutableStateOf(false) } // Toggle between reminder and file mode
+    
     // Single content field - supports both typing and voice
     var content by remember { mutableStateOf("") }
     var isProcessing by remember { mutableStateOf(false) }
@@ -1094,6 +1114,20 @@ fun InputScreen(
         5 to "Medium", 6 to "Medium-High", 7 to "High-Medium", 
         8 to "High", 9 to "Very High", 10 to "Urgent"
     )
+    
+    // Check for file picker result from MainActivity
+    LaunchedEffect(Unit) {
+        MainActivity.selectedFileUri?.let { uri ->
+            scope.launch {
+                val success = fileManager.loadFileFromUri(uri)
+                if (success) {
+                    content = fileManager.currentFileContent.value
+                    isFileMode = true
+                }
+                MainActivity.selectedFileUri = null // Clear after processing
+            }
+        }
+    }
     
     // Load existing reminder data if editing
     LaunchedEffect(reminderId) {
@@ -1254,6 +1288,70 @@ fun InputScreen(
         }
     }
     
+    // File operations functions
+    fun launchFilePicker() {
+        try {
+            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                type = "*/*" // Accept all file types
+                addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_TITLE, "Select a file")
+            }
+            (context as? Activity)?.startActivityForResult(intent, 1003)
+        } catch (e: Exception) {
+            Log.e("InputScreen", "Error launching file picker: ${e.message}")
+        }
+    }
+    
+    fun handleFileMenuAction(action: String) {
+        when (action) {
+            "new" -> {
+                fileManager.createNewFile()
+                content = ""
+                isFileMode = true
+            }
+            "open" -> {
+                launchFilePicker()
+            }
+            "saved" -> {
+                showSavedFilesDialog = true
+            }
+            "save" -> {
+                if (fileManager.currentFileUri.value != null) {
+                    scope.launch {
+                        fileManager.currentFileContent.value = content
+                        val success = fileManager.saveToOriginalFile()
+                        if (success) {
+                            isFileMode = false // Switch back to reminder mode after saving
+                        }
+                    }
+                } else {
+                    showSaveAsDialog = true
+                }
+            }
+            "save_as" -> {
+                saveAsFileName = fileManager.currentFileName.value.ifBlank { "reminder.txt" }
+                showSaveAsDialog = true
+            }
+            "discard" -> {
+                scope.launch {
+                    val success = fileManager.discardChanges()
+                    if (success) {
+                        content = fileManager.currentFileContent.value
+                    }
+                }
+            }
+            "close_file" -> {
+                fileManager.currentFileName.value = ""
+                fileManager.currentFileContent.value = ""
+                fileManager.currentFileUri.value = null
+                fileManager.isFileModified.value = false
+                content = ""
+                isFileMode = false
+            }
+        }
+        showFileMenu = false
+    }
+    
     // Simple processing for user content
     LaunchedEffect(content) {
         if (content.isNotBlank() && !isProcessing) {
@@ -1360,14 +1458,58 @@ fun InputScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    // Empty title - no text
+                    // Show file name or mode indicator
+                    Text(
+                        text = if (isFileMode) {
+                            fileManager.getDisplayFileName()
+                        } else {
+                            ""
+                        },
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 14.sp
+                    )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Row {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                        // File menu button
+                        IconButton(onClick = { showFileMenu = true }) {
+                            Icon(Icons.Default.Menu, contentDescription = "File Menu")
+                        }
                     }
                 },
                 actions = {
+                    // Mode toggle button
+                    Button(
+                        onClick = {
+                            isFileMode = !isFileMode
+                            if (!isFileMode) {
+                                // Switching to file mode, create new file if needed
+                                if (fileManager.currentFileName.value.isBlank()) {
+                                    fileManager.createNewFile()
+                                }
+                                content = fileManager.currentFileContent.value
+                            } else {
+                                // Switching to reminder mode, update file content first
+                                fileManager.updateContent(content)
+                            }
+                        },
+                        modifier = Modifier.height(32.dp).padding(horizontal = 4.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFileMode) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(
+                            text = if (isFileMode) "📝 Reminder" else "📁 File",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
                     // Home icon
                     IconButton(onClick = onHomeClick) {
                         Icon(
@@ -1478,6 +1620,209 @@ fun InputScreen(
             )
         }
     ) { paddingValues ->
+    // File menu dropdown
+    if (showFileMenu) {
+        DropdownMenu(
+            expanded = showFileMenu,
+            onDismissRequest = { showFileMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("📄 New File") },
+                onClick = { handleFileMenuAction("new") },
+                leadingIcon = { Icon(Icons.Default.Create, contentDescription = "New File") }
+            )
+            DropdownMenuItem(
+                text = { Text("📂 Open File") },
+                onClick = { handleFileMenuAction("open") },
+                leadingIcon = { Icon(Icons.Default.FolderOpen, contentDescription = "Open File") }
+            )
+            DropdownMenuItem(
+                text = { Text("📁 Saved Files") },
+                onClick = { handleFileMenuAction("saved") },
+                leadingIcon = { Icon(Icons.Default.FileOpen, contentDescription = "Saved Files") }
+            )
+            if (isFileMode) {
+                DropdownMenuItem(
+                    text = { Text("💾 Save") },
+                    onClick = { handleFileMenuAction("save") },
+                    leadingIcon = { Icon(Icons.Default.Save, contentDescription = "Save") }
+                )
+                DropdownMenuItem(
+                    text = { Text("💾 Save As...") },
+                    onClick = { handleFileMenuAction("save_as") },
+                    leadingIcon = { Icon(Icons.Default.Save, contentDescription = "Save As") }
+                )
+                DropdownMenuItem(
+                    text = { Text("🗑️ Discard Changes") },
+                    onClick = { handleFileMenuAction("discard") },
+                    leadingIcon = { Icon(Icons.Default.Close, contentDescription = "Discard") }
+                )
+                DropdownMenuItem(
+                    text = { Text("❌ Close File") },
+                    onClick = { handleFileMenuAction("close_file") },
+                    leadingIcon = { Icon(Icons.Default.Close, contentDescription = "Close File") }
+                )
+            }
+        }
+    }
+    
+    // Saved files dialog
+    if (showSavedFilesDialog) {
+        val savedFiles = remember { fileManager.getSavedFiles() }
+        
+        Dialog(onDismissRequest = { showSavedFilesDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "📁 Saved Files",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    if (savedFiles.isEmpty()) {
+                        Text(
+                            text = "No saved files found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(savedFiles) { file ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            scope.launch {
+                                                val success = fileManager.loadSavedFile(file.name)
+                                                if (success) {
+                                                    content = fileManager.currentFileContent.value
+                                                    isFileMode = true
+                                                    showSavedFilesDialog = false
+                                                }
+                                            }
+                                        }
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = file.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "${file.length()} bytes",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            fileManager.deleteFile(file.name)
+                                            showSavedFilesDialog = false
+                                        }
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showSavedFilesDialog = false }) {
+                            Text("Close")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Save As dialog
+    if (showSaveAsDialog) {
+        Dialog(onDismissRequest = { showSaveAsDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "💾 Save As",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = saveAsFileName,
+                        onValueChange = { saveAsFileName = it },
+                        label = { Text("File Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { showSaveAsDialog = false }) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    fileManager.currentFileContent.value = content
+                                    val success = fileManager.saveAsNewFile(saveAsFileName)
+                                    if (success) {
+                                        isFileMode = false // Switch back to reminder mode after saving
+                                        showSaveAsDialog = false
+                                    }
+                                }
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1649,32 +1994,61 @@ fun InputScreen(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Single content field (typing + voice) - expandable up to 5 lines with smaller font
+                    // Single content field (typing + voice) - expandable with more lines for file content
                     OutlinedTextField(
                         value = content,
-                        onValueChange = { content = it },
+                        onValueChange = {
+                            content = it
+                            if (isFileMode) {
+                                fileManager.updateContent(it)
+                            }
+                        },
                         label = {
                             Text(
-                                text = "What do you need?",
+                                text = if (isFileMode) "File Content" else "What do you need?",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = 10.sp // Small font for better readability
                                 )
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        maxLines = 5, // Expandable up to 5 lines for longer content
+                        maxLines = if (isFileMode) 20 else 5, // More lines for file content
                         textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 14.sp // Slightly larger font for better readability
                         ),
                         placeholder = {
                             Text(
-                                text = "e.g., Call mom tomorrow at 3pm",
+                                text = if (isFileMode) "Start typing or load a file..." else "e.g., Call mom tomorrow at 3pm",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontSize = 12.sp // Smaller placeholder text
                                 )
                             )
                         }
                     )
+                    
+                    // File mode indicator
+                    if (isFileMode) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📁 File Mode: ${fileManager.getDisplayFileName()}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            
+                            if (fileManager.isFileModified.value) {
+                                Text(
+                                    text = "• Modified",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     

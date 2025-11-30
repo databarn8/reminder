@@ -40,6 +40,7 @@ import androidx.activity.result.ActivityResultLauncher
 import com.reminder.app.utils.ScreenFlashManager
 import com.reminder.app.utils.ScreenFlashOverlay
 import com.reminder.app.utils.SpeechManager
+import com.reminder.app.utils.FileManager
 import com.reminder.app.viewmodel.ReminderViewModel
 import com.reminder.app.viewmodel.ArchiveRestoreViewModel
 import com.reminder.app.viewmodel.TaskCompletionViewModel
@@ -53,6 +54,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var emailPreferencesManager: EmailPreferencesManager
     private lateinit var googleSignInHelper: GoogleSignInHelper
     private lateinit var signInLauncher: ActivityResultLauncher<Intent>
+    private lateinit var fileManager: FileManager
+    private lateinit var filePickerLauncher: ActivityResultLauncher<Intent>
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -128,6 +131,22 @@ class MainActivity : ComponentActivity() {
             googleSignInHelper.handleSignInResult(task)
         }
     }
+    
+    private fun initFilePickerLauncher() {
+        filePickerLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.data?.let { uri ->
+                    // Handle the selected file URI
+                    // This will be used by the InputScreen
+                    android.util.Log.d("MainActivity", "File selected: $uri")
+                    // Store the URI in a static variable for InputScreen to access
+                    MainActivity.selectedFileUri = uri
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -138,6 +157,8 @@ class MainActivity : ComponentActivity() {
         emailPreferencesManager = EmailPreferencesManager(this)
         googleSignInHelper = GoogleSignInHelper(this)
         initSignInLauncher()
+        fileManager = FileManager(this)
+        initFilePickerLauncher()
         
         // Check and request necessary permissions
         if (!speechManager.hasAudioPermission()) {
@@ -486,5 +507,10 @@ class MainActivity : ComponentActivity() {
                 startActivity(intent)
             }
         }
+    }
+    
+    companion object {
+        // Static variable to share selected file URI with InputScreen
+        var selectedFileUri: Uri? = null
     }
 }
