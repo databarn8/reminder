@@ -39,6 +39,14 @@ class ReminderViewModel(
             }
         }
     }
+    
+    fun refreshReminders() {
+        viewModelScope.launch {
+            repository.getAllReminders().collect { reminderList ->
+                _reminders.value = reminderList
+            }
+        }
+    }
 
     fun addReminder(reminder: Reminder) {
         viewModelScope.launch {
@@ -116,7 +124,7 @@ class ReminderViewModel(
                 repository.archiveReminder(id)
                 // Cancel alarm for archived reminder
                 NotificationScheduler.cancelReminder(application, id)
-                _errorMessage.value = null
+                _errorMessage.value = "Reminder archived successfully"
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to archive reminder: ${e.message}"
             } finally {

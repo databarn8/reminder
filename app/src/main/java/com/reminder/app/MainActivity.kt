@@ -354,7 +354,10 @@ class MainActivity : ComponentActivity() {
                             val archiveViewModel: ArchiveRestoreViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                 factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
                             )
-                            ArchiveRestoreScreen(viewModel = archiveViewModel)
+                            ArchiveRestoreScreen(
+                                viewModel = archiveViewModel,
+                                onReminderRestored = { viewModel.refreshReminders() }
+                            )
                         }
                         
                         composable("task_completion") {

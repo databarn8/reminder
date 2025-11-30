@@ -301,7 +301,7 @@ fun ReminderListScreen(
                             onDeleteClick = { viewModel.deleteReminder(reminder) },
                             onArchiveClick = { viewModel.archiveReminder(reminder.id) },
                             onEmailClick = { onEmailClick(reminder) },
-                            onTaskCompleteClick = { viewModel.markReminderAsCompletedWithArchive(reminder.id) },
+                            onTaskCompleteClick = { viewModel.markReminderAsCompleted(reminder.id) },
                             onAlertLevelChange = { reminder, level ->
                                 val updatedReminder = reminder.copy(
                                     alertLevel = level.name

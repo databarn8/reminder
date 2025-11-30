@@ -25,7 +25,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArchiveRestoreScreen(
-    viewModel: ArchiveRestoreViewModel = viewModel()
+    viewModel: ArchiveRestoreViewModel = viewModel(),
+    onReminderRestored: () -> Unit = {}
 ) {
     val archivedReminders by viewModel.archivedReminders.collectAsState()
     val deletedReminders by viewModel.deletedReminders.collectAsState()
@@ -110,7 +111,7 @@ fun ArchiveRestoreScreen(
             ) {
                 Text(
                     text = "Purge Options",
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -170,7 +171,8 @@ fun ArchiveRestoreScreen(
                     selectedReminders = selectedReminders,
                     backupStatus = backupStatus,
                     onReminderClick = { id -> viewModel.toggleSelection(id) },
-                    onSelectAll = { viewModel.selectAll() }
+                    onSelectAll = { viewModel.selectAll() },
+                    onUnarchive = { id -> viewModel.unarchiveSingle(id) }
                 )
                 1 -> DeletedRemindersList(
                     deletedReminders = deletedReminders,
@@ -228,7 +230,8 @@ fun ArchivedRemindersList(
     selectedReminders: Set<Int>,
     backupStatus: Map<Int, Boolean>,
     onReminderClick: (Int) -> Unit,
-    onSelectAll: () -> Unit
+    onSelectAll: () -> Unit,
+    onUnarchive: (Int) -> Unit = {}
 ) {
     Column {
         if (archivedReminders.isNotEmpty()) {
@@ -257,7 +260,8 @@ fun ArchivedRemindersList(
                         reminder = reminder,
                         isSelected = selectedReminders.contains(reminder.id),
                         hasBackup = backupStatus[reminder.id] ?: false,
-                        onClick = { onReminderClick(reminder.id) }
+                        onClick = { onReminderClick(reminder.id) },
+                        onUnarchive = onUnarchive
                     )
                 }
             }
@@ -327,7 +331,8 @@ fun ArchivedReminderItem(
     reminder: Reminder,
     isSelected: Boolean,
     hasBackup: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onUnarchive: (Int) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
     
@@ -336,15 +341,14 @@ fun ArchivedReminderItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                            else MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .clickable { onClick() },
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -367,14 +371,25 @@ fun ArchivedReminderItem(
                 
                 Text(
                     text = "Archived: ${dateFormat.format(Date(reminder.archivedDate ?: 0))}",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color.Gray
                 )
                 
                 Text(
                     text = "Created: ${dateFormat.format(Date(reminder.createdAt))}",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color.Gray
+                )
+            }
+            
+            // Unarchive button
+            IconButton(
+                onClick = { onUnarchive(reminder.id) }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Unarchive,
+                    contentDescription = "Unarchive",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             
@@ -434,7 +449,7 @@ fun DeletedReminderItem(
             ) {
                 Text(
                     text = reminder.content,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -442,13 +457,13 @@ fun DeletedReminderItem(
                 
                 Text(
                     text = "Deleted: ${dateFormat.format(Date(reminder.deletedDate ?: 0))}",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color.Gray
                 )
                 
                 Text(
                     text = "Created: ${dateFormat.format(Date(reminder.createdAt))}",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color.Gray
                 )
             }

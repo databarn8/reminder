@@ -446,10 +446,13 @@ fun ScreenFlashOverlay() {
     
     var isVisible by remember { mutableStateOf(false) }
     var currentFlashCount by remember { mutableStateOf(0) }
+    var lastTriggerCount by remember { mutableStateOf(0) }
     
     LaunchedEffect(flashTrigger) {
-        if (flashTrigger > 0) {
+        // Only trigger if the trigger count has actually increased
+        if (flashTrigger > lastTriggerCount) {
             android.util.Log.d("ScreenFlashOverlay", "Flash triggered! Count: $flashCount, Duration: $flashDuration")
+            lastTriggerCount = flashTrigger
             currentFlashCount = 0
             repeat(flashCount) { index ->
                 isVisible = true

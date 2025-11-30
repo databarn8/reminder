@@ -149,6 +149,21 @@ class ArchiveRestoreViewModel(
         }
     }
     
+    fun unarchiveSingle(reminderId: Int) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                repository.unarchiveReminder(reminderId)
+                loadArchivedReminders()
+                _errorMessage.value = null
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to unarchive reminder: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+    
     fun purgeOldReminders(weeks: Int) {
         viewModelScope.launch {
             try {

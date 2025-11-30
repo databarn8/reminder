@@ -48,7 +48,7 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE isDeleted = 1 ORDER BY deletedDate DESC")
     suspend fun getDeletedRemindersSync(): List<Reminder>
     
-    @Query("SELECT * FROM reminders WHERE (isArchived = 1 OR isDeleted = 1) AND (archivedDate < :cutoffDate OR deletedDate < :cutoffDate)")
+    @Query("SELECT * FROM reminders WHERE (isArchived = 1 OR isDeleted = 1) AND ((archivedDate < :cutoffDate AND isArchived = 1) OR (deletedDate < :cutoffDate AND isDeleted = 1))")
     suspend fun getRemindersOlderThan(cutoffDate: Long): List<Reminder>
     
     @Query("UPDATE reminders SET isArchived = 1, archivedDate = :timestamp WHERE id = :id")
