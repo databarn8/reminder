@@ -731,7 +731,7 @@ fun TimePickerDialog(
     
     // Smart time suggestions based on context
     val smartTimeSuggestions = remember(currentTime) {
-        val baseSuggestions = mutableListOf<Pair<String, Pair<Float, Float>>>()
+        val baseSuggestions = mutableListOf<Pair<String, Pair<Float, Float>>()
         
         // Add smart defaults first
         smartTimeDefaults.forEach { h ->
@@ -1275,7 +1275,7 @@ fun InputScreen(
                     // Always update day and time fields when detected in message
                     // But preserve user input if they've manually set different values
                     if (extractedDay.isNotBlank()) {
-                        // Only update if the detected day is different from current
+                        // Only update if detected day is different from current
                         if (whenDay != extractedDay) {
                             whenDay = extractedDay
                             Log.d("InputScreen", "Updated whenDay from '$whenDay' to '$extractedDay' based on message content")
@@ -1298,7 +1298,7 @@ fun InputScreen(
                         }
                     }
                     if (extractedTime.isNotBlank()) {
-                        // Only update if the detected time is different from current
+                        // Only update if detected time is different from current
                         if (whenTime != extractedTime) {
                             whenTime = extractedTime
                             Log.d("InputScreen", "Updated whenTime from '$whenTime' to '$extractedTime' based on message content")
@@ -1329,7 +1329,7 @@ fun InputScreen(
                     }
                     
                     // Don't auto-update selectedDate when day info is detected
-                    // This preserves the date set by the user in the date picker
+                    // This preserves date set by user in the date picker
                     
                     Log.d("InputScreen", "Processed: category='$processedCategory', time='$processedTime', priority='$processedPriority', day='$extractedDay', timeOnly='$extractedTime'")
                     Log.d("InputScreen", "Preserved user input: whenDay='$whenDay', whenTime='$whenTime'")
