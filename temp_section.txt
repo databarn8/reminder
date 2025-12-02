@@ -1,0 +1,31 @@
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    
+                                    TextButton(
+                                        onClick = { clearAttachedFiles() },
+                                        modifier = Modifier.height(24.dp)
+                                    ) {
+                                        Text(
+                                            text = "Clear All",
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                
+                                // List of attached files
+                                attachedFiles.forEachIndexed { index, (fileName, fileContent) ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "📄 ${fileName.take(30)}${if (fileName.length > 30) "..." else ""}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        

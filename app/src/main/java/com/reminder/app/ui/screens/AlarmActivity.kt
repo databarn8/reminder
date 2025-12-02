@@ -218,9 +218,8 @@ class AlarmActivity : ComponentActivity() {
         }
         
         if (alertConfig.sound.enabled && meetingModeManager.shouldEnableSound()) {
-            // Get sound times or default
-            val prefs = this.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
-            val soundTimes = prefs.getInt("sound_duration_seconds", meetingModeManager.getSoundDurationSeconds())
+            // Use individual alert level sound repeat count instead of global setting
+            val soundTimes = alertConfig.sound.repeatCount
             playAlarmSound(alertConfig.sound, alertLevel, soundTimes)
         }
         
@@ -560,11 +559,10 @@ fun AlarmScreen(
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     
-    // Load sound times from preferences
-    var soundTimes by remember { mutableStateOf(2) }
-    LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("alarm_preferences", Context.MODE_PRIVATE)
-        soundTimes = prefs.getInt("sound_duration_seconds", 2)
+    // Sound times will come from alertConfig.sound.repeatCount, not global preferences
+    var soundTimes by remember { mutableStateOf(alertConfig.sound.repeatCount) }
+    LaunchedEffect(alertConfig.sound.repeatCount) {
+        soundTimes = alertConfig.sound.repeatCount
     }
     
     // Update time every second
@@ -738,7 +736,7 @@ fun AlarmScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         
                         Text(
-                            text = "Configure times in Alert Settings (only when meeting mode is OFF)",
+                            text = "Individual setting for ${alertLevel.name.lowercase()} level",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
