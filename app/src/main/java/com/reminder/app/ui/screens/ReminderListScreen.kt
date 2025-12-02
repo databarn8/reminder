@@ -114,13 +114,7 @@ fun ReminderListScreen(
                     // Empty title - no text at all
                 },
                 navigationIcon = {
-                    IconButton(onClick = onHomeClick) {
-                        Icon(
-                            imageVector = Icons.Default.Home,
-                            contentDescription = "Home",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    // No home button on home page - it doesn't do anything
                 },
                 actions = {
                     // Gear icon for general settings - first position

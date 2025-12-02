@@ -321,7 +321,11 @@ class MainActivity : ComponentActivity() {
                         composable("alert_settings") {
                             android.util.Log.d("AlertTest", "Alert settings screen navigated!")
                             AlertSettingsScreenFixed(
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from alert settings!")
+                                    navController.popBackStack("reminder_list", false)
+                                }
                             )
                         }
                         

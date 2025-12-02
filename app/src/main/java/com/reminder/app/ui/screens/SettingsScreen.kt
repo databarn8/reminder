@@ -31,19 +31,22 @@ fun SettingsScreen(
                     // Empty title - no text
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Row {
+                        // Home icon - first position
+                        IconButton(onClick = onHomeClick) {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = "Home",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 actions = {
-                    // Home icon
-                    IconButton(onClick = onHomeClick) {
-                        Icon(
-                            Icons.Default.Home,
-                            contentDescription = "Home",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    // No actions needed
                 }
             )
         }
