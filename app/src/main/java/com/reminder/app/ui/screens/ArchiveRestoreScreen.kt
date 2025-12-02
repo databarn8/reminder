@@ -68,14 +68,25 @@ fun ArchiveRestoreScreen(
             },
             navigationIcon = {
                 Row {
-                    // Home icon - first position
-                    IconButton(onClick = onHomeClick) {
-                        Icon(
-                            Icons.Default.Home,
-                            contentDescription = "Home",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                    // Home icon - first position with prominent card background
+                    Card(
+                        modifier = Modifier
+                            .background(Color.Blue.copy(alpha = 0.3f))
+                            .padding(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = onHomeClick,
+                            modifier = Modifier.padding(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = "Home",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.width(16.dp))
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
