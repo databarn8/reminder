@@ -23,7 +23,7 @@ class DataExportImportManager(private val context: Context) {
     suspend fun exportToCSV(reminders: List<Reminder>): Result<String> = withContext(Dispatchers.IO) {
         try {
             val fileName = "reminders_export_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
-            val downloadsDir = File(context.getExternalFilesDir(null), "Downloads")
+            val downloadsDir = File(context.getExternalFilesDir(null), "Exports")
             if (!downloadsDir.exists()) {
                 downloadsDir.mkdirs()
             }
@@ -46,6 +46,9 @@ class DataExportImportManager(private val context: Context) {
                 fos.write(csvContent.toByteArray())
             }
             
+            // Log the file path for debugging
+            android.util.Log.d("DataExportImportManager", "Created CSV export at: ${file.absolutePath}")
+            
             Result.success(file.absolutePath)
         } catch (e: Exception) {
             Result.failure(e)
@@ -55,7 +58,7 @@ class DataExportImportManager(private val context: Context) {
     suspend fun exportToJSON(reminders: List<Reminder>): Result<String> = withContext(Dispatchers.IO) {
         try {
             val fileName = "reminders_export_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
-            val downloadsDir = File(context.getExternalFilesDir(null), "Downloads")
+            val downloadsDir = File(context.getExternalFilesDir(null), "Exports")
             if (!downloadsDir.exists()) {
                 downloadsDir.mkdirs()
             }
@@ -91,6 +94,9 @@ class DataExportImportManager(private val context: Context) {
                 val jsonContent = jsonArray.toString(2)
                 fos.write(jsonContent.toByteArray())
             }
+            
+            // Log the file path for debugging
+            android.util.Log.d("DataExportImportManager", "Created JSON export at: ${file.absolutePath}")
             
             Result.success(file.absolutePath)
         } catch (e: Exception) {

@@ -539,6 +539,67 @@ fun BackupSettingsScreen(
                 }
             }
             
+            // View Saved Files Section
+            item {
+                Card {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "View Saved Files",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Text(
+                            text = "View your saved backup files:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        // View saved files button
+                        Button(
+                            onClick = {
+                                GlobalScope.launch {
+                                    try {
+                                        val backupDir = File(context.getExternalFilesDir(null), "Backups")
+                                        if (backupDir.exists()) {
+                                            val files = backupDir.listFiles { file ->
+                                                file.name.endsWith(".json") || file.name.endsWith(".zip")
+                                            }?.sortedByDescending { it.lastModified() }
+                                            
+                                            if (!files.isNullOrEmpty()) {
+                                                android.util.Log.d("BackupSettings", "Found ${files.size} saved backup files:")
+                                                files.forEach { file ->
+                                                    android.util.Log.d("BackupSettings", "File: ${file.name}, Path: ${file.absolutePath}, Size: ${file.length()} bytes")
+                                                }
+                                            } else {
+                                                android.util.Log.d("BackupSettings", "No saved backup files found in ${backupDir.absolutePath}")
+                                            }
+                                        } else {
+                                            android.util.Log.d("BackupSettings", "Backup directory does not exist: ${backupDir.absolutePath}")
+                                        }
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("BackupSettings", "Error viewing saved files: ${e.message}")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("View Saved Files")
+                        }
+                        
+                        Text(
+                            text = "Check the logcat output to see the list of saved files and their paths",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            }
+            
             // Restore Backup Section
             item {
                 Card {
@@ -725,13 +786,19 @@ private fun createZippedBackupFileForEmail(context: android.content.Context, rem
         put("reminders", jsonArray)
     }
     
-    // Create JSON file first
+    // Create a permanent directory for backups if it doesn't exist
+    val backupDir = File(context.getExternalFilesDir(null), "Backups")
+    if (!backupDir.exists()) {
+        backupDir.mkdirs()
+    }
+    
+    // Create JSON file first in the permanent directory
     val jsonFileName = "reminder_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.json"
-    val jsonFile = File(context.cacheDir, jsonFileName)
+    val jsonFile = File(backupDir, jsonFileName)
     jsonFile.writeText(backupObject.toString(2))
     
-    // Create ZIP file containing the JSON
-    val zipFile = File(context.cacheDir, fileName)
+    // Create ZIP file in the permanent directory
+    val zipFile = File(backupDir, fileName)
     java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
         val entry = java.util.zip.ZipEntry(jsonFileName)
         entry.time = System.currentTimeMillis()
@@ -740,8 +807,12 @@ private fun createZippedBackupFileForEmail(context: android.content.Context, rem
         zos.closeEntry()
     }
     
-    // Clean up the temporary JSON file
-    jsonFile.delete()
+    // Don't delete the JSON file - keep it for viewing
+    // jsonFile.delete()  // Commented out to preserve the file
+    
+    // Log the file paths for debugging
+    android.util.Log.d("BackupSettings", "Created JSON backup at: ${jsonFile.absolutePath}")
+    android.util.Log.d("BackupSettings", "Created ZIP backup at: ${zipFile.absolutePath}")
     
     return zipFile
 }
