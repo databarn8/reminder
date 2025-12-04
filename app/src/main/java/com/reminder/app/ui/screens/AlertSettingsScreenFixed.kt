@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +36,8 @@ import com.reminder.app.utils.MeetingModeManager
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertSettingsScreenFixed(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onHomeClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var alertLevelConfig by remember { mutableStateOf(loadAlertLevelConfig(context)) }
@@ -52,11 +54,21 @@ fun AlertSettingsScreenFixed(
             TopAppBar(
                 title = { Text("Alert Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    Row {
+                        // Home icon - first position
+                        IconButton(onClick = onHomeClick) {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = "Home",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
                     }
                 }
             )

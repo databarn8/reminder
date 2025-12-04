@@ -69,7 +69,7 @@ class TaskCompletionViewModel(
             try {
                 val selectedIds = _selectedReminders.value.toList()
                 selectedIds.forEach { id ->
-                    repository.unmarkReminderAsCompleted(id)
+                    repository.restoreCompletedReminder(id)
                 }
                 clearSelection()
                 loadCompletedReminders()
@@ -87,7 +87,10 @@ class TaskCompletionViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                repository.unmarkReminderAsCompleted(id)
+                // Use the new repository method that handles both completion and archive state
+                repository.restoreCompletedReminder(id)
+                // Add a small delay to ensure database update completes before navigation
+                kotlinx.coroutines.delay(100)
                 loadCompletedReminders()
                 onReminderRestored()
                 _errorMessage.value = "Reminder restored successfully"

@@ -54,6 +54,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var googleSignInHelper: GoogleSignInHelper
     private lateinit var signInLauncher: ActivityResultLauncher<Intent>
     
+    // File picker launcher for file attachments
+    var filePickerLauncher: ActivityResultLauncher<Intent>? = null
+    
+    companion object {
+        // Static properties to hold file picker results
+        var selectedFileUri: Uri? = null
+        var selectedFileUris: List<Uri>? = null
+    }
+    
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -138,6 +147,29 @@ class MainActivity : ComponentActivity() {
         emailPreferencesManager = EmailPreferencesManager(this)
         googleSignInHelper = GoogleSignInHelper(this)
         initSignInLauncher()
+        
+        // Initialize file picker launcher
+        filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            result.data?.let { data ->
+                // Check for multiple files
+                val clipData = data.clipData
+                if (clipData != null) {
+                    // Multiple files selected
+                    val uris = mutableListOf<Uri>()
+                    for (i in 0 until clipData.itemCount) {
+                        clipData.getItemAt(i)?.uri?.let { uri ->
+                            uris.add(uri)
+                        }
+                    }
+                    selectedFileUris = uris
+                } else {
+                    // Single file selected
+                    data.data?.let { uri ->
+                        selectedFileUri = uri
+                    }
+                }
+            }
+        }
         
         // Check and request necessary permissions
         if (!speechManager.hasAudioPermission()) {
@@ -321,7 +353,11 @@ class MainActivity : ComponentActivity() {
                         composable("alert_settings") {
                             android.util.Log.d("AlertTest", "Alert settings screen navigated!")
                             AlertSettingsScreenFixed(
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onHomeClick = {
+                                    android.util.Log.d("HomeTest", "Home button clicked from alert settings!")
+                                    navController.popBackStack("reminder_list", false)
+                                }
                             )
                         }
                         
@@ -388,10 +424,16 @@ class MainActivity : ComponentActivity() {
                             val taskCompletionViewModel: TaskCompletionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                 factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
                             )
+                            val mainViewModel: ReminderViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
+                            )
                             TaskCompletionScreen(
                                 viewModel = taskCompletionViewModel,
                                 onBack = { navController.popBackStack() },
-                                onReminderRestored = { viewModel.refreshReminders() },
+                                onReminderRestored = {
+                                    // Go directly to reminder list instead of archive page
+                                    navController.popBackStack("reminder_list", false)
+                                },
                                 onHomeClick = {
                                     android.util.Log.d("HomeTest", "Home button clicked from task completion!")
                                     navController.popBackStack("reminder_list", false)
