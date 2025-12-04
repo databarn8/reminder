@@ -67,24 +67,30 @@ fun ArchiveRestoreScreen(
                 // Empty title - tabs will show the current section
             },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = onBack
+                ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             },
             actions = {
-                // Home icon
-                IconButton(onClick = onHomeClick) {
-                    Icon(
-                        Icons.Default.Home,
-                        contentDescription = "Home",
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                // Tab navigation
-                Row {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Home icon - consistent with other screens
+                    IconButton(onClick = onHomeClick) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Tab navigation
                     tabs.forEachIndexed { index, title ->
                         FilterChip(
                             onClick = { selectedTab = index },
