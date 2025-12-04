@@ -3,9 +3,21 @@
 ## Current State (December 3, 2025)
 
 ### Main Branch Status
-- **Current Commit**: `508de4b` - "Merge file picker functionality into main"
-- **Previous Commit**: `f61279a` - "Implement file picker and attachment functionality"
-- **Rollback Tag**: `rollback1` points to commit `f61279a`
+- **Current Commit**: `bdfafc3` - "Add rollback documentation for file picker implementation"
+- **Previous Commit**: `0e115e8` - "Add rollback documentation for file picker implementation"
+- **Rollback Tag**: `rollback1` points to commit `f61279a` (rewritten)
+- **Security Fix Applied**: Secret files removed from commit history
+
+### Security Fix Applied (December 3, 2025)
+- **Issue**: Secret files (credentials.json, token.json) were accidentally committed and blocking git push
+- **Solution**: Used `git filter-branch` to remove secret files from entire commit history
+- **Commands Used**:
+  ```bash
+  git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch credentials.json token.json' --prune-empty --tag-name-filter cat -- --all
+  git push origin main --force
+  ```
+- **Result**: Secret files removed from history, push protection bypassed
+- **Impact**: All commit hashes were rewritten, tags were updated
 
 ### What Was Fixed/Implemented
 
