@@ -75,6 +75,11 @@ class ReminderRepository(
         reminderDao.unmarkReminderAsCompleted(id)
     }
     
+    suspend fun restoreCompletedReminder(id: Int) {
+        reminderDao.unmarkReminderAsCompleted(id)
+        reminderDao.unarchiveReminder(id)
+    }
+    
     suspend fun markReminderAsCompletedWithArchive(id: Int, completionNotes: String? = null) {
         reminderDao.markReminderAsCompletedWithArchive(id, System.currentTimeMillis(), completionNotes)
     }
