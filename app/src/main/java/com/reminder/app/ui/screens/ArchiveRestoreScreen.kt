@@ -67,30 +67,27 @@ fun ArchiveRestoreScreen(
                 // Empty title - tabs will show the current section
             },
             navigationIcon = {
-                Row {
-                    // Home icon - first position with prominent card background
-                    Card(
-                        modifier = Modifier
-                            .background(Color.Blue.copy(alpha = 0.3f))
-                            .padding(4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Home icon - consistent with other screens
+                    IconButton(
+                        onClick = onHomeClick,
+                        modifier = Modifier.size(40.dp)
                     ) {
-                        IconButton(
-                            onClick = onHomeClick,
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Home,
-                                contentDescription = "Home",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Home",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
