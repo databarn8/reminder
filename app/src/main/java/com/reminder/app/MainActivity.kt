@@ -424,10 +424,16 @@ class MainActivity : ComponentActivity() {
                             val taskCompletionViewModel: TaskCompletionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                 factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
                             )
+                            val mainViewModel: ReminderViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                factory = com.reminder.app.ReminderViewModelFactory(repository, this@MainActivity.application)
+                            )
                             TaskCompletionScreen(
                                 viewModel = taskCompletionViewModel,
                                 onBack = { navController.popBackStack() },
-                                onReminderRestored = { viewModel.refreshReminders() },
+                                onReminderRestored = {
+                                    // Go directly to reminder list instead of archive page
+                                    navController.popBackStack("reminder_list", false)
+                                },
                                 onHomeClick = {
                                     android.util.Log.d("HomeTest", "Home button clicked from task completion!")
                                     navController.popBackStack("reminder_list", false)
