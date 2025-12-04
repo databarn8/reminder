@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,7 +87,8 @@ fun ReminderListScreen(
     onArchiveRestoreClick: () -> Unit = {},
     onTaskCompletionClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onHomeClick: () -> Unit = {}
+    onHomeClick: () -> Unit = {},
+    onGpsTownClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val reminders by viewModel.reminders.collectAsState()
@@ -158,6 +160,14 @@ fun ReminderListScreen(
                         Icon(
                             imageVector = Icons.Default.CloudUpload,
                             contentDescription = "Backup Settings"
+                        )
+                    }
+                    // GPS Town button
+                    IconButton(onClick = onGpsTownClick) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "GPS Town",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

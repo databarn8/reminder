@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
     private val emailIntentLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        // For email intents, we want to capture the user's choice regardless of result code
+        // For email intents, we want to capture user's choice regardless of result code
         // since RESULT_OK might not be returned when user just selects an app
         result.data?.let { intent ->
             // Update email preference based on user's choice
@@ -276,6 +276,10 @@ class MainActivity : ComponentActivity() {
                                 onHomeClick = {
                                     android.util.Log.d("HomeTest", "Home button clicked!")
                                     // Already on home screen
+                                },
+                                onGpsTownClick = {
+                                    android.util.Log.d("GpsTownTest", "GPS Town button clicked!")
+                                    launchGpsTownApp()
                                 }
                             )
                         }
@@ -315,7 +319,7 @@ class MainActivity : ComponentActivity() {
                                 reminderId = reminderId,
                                 onBack = { navController.popBackStack() },
                                 onConfirm = { _, _ ->
-                                    // InputScreen handles the reminder creation internally
+                                    // InputScreen handles reminder creation internally
                                     // This callback is only used for navigation back
                                     navController.popBackStack()
                                 },
@@ -527,6 +531,32 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(intent)
             }
+        }
+    }
+    
+    private fun launchGpsTownApp() {
+        try {
+            // Try to launch GPS Town app by package name first
+            val packageManager = packageManager
+            val intent = packageManager.getLaunchIntentForPackage("com.gpstown.gpstown")
+                ?: // Fallback: try to find GPS Town by app name
+                Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    // Try different possible app names
+                    setPackage("com.gpstown.gpstown")
+                }
+            
+            startActivity(intent)
+            android.util.Log.d("GpsTownTest", "Attempting to launch GPS Town app")
+        } catch (e: Exception) {
+            android.util.Log.e("GpsTownTest", "Failed to launch GPS Town app: ${e.message}")
+            // Show toast to user if GPS Town is not installed
+            android.widget.Toast.makeText(
+                this,
+                "GPS Town app not found. Please install GPS Town first.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 }
