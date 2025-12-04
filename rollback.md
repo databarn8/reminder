@@ -159,4 +159,81 @@ git show rollback1                 # Show rollback1 details
 - **Database Integration**: File attachments stored as JSON in reminders
 - **UI Integration**: File picker button and attachment display in InputScreen
 
-This rollback information provides complete traceability of the file picker implementation and easy rollback procedures if needed.
+## Complete Main Branch Commit History with Date/Time
+
+### Recent Commits (Latest 20)
+```
+f0bc97a - 2025-12-03 22:18:09 - Update rollback.md with security fix documentation
+bdfafc3 - 2025-12-03 22:16:25 - Add rollback documentation for file picker implementation
+e5d076d - 2025-12-03 22:15:53 - Remove secret files and update .gitignore
+313e610 - 2025-12-01 21:01:42 - Add home buttons checkpoint before UI changes
+59ed913 - 2025-11-30 23:57:59 - Rollback file viewer functionality from commit 96f2ca2
+99f0764 - 2025-11-30 09:56:34 - Final font size adjustment - increase readability
+f16abc1 - 2025-11-30 09:26:51 - Fine-tune purge button UI - smaller buttons with larger font
+6448cba - 2025-11-30 09:18:06 - Improve Archive/Deleted page purge options UI
+65f648c - 2025-11-30 09:05:30 - Update UI: Add home icons to all screens and improve TaskCompletionScreen layout
+faa8c30 - 2025-11-29 22:00:01 - Fix completed tasks display to show more content
+e4ef0a9 - 2025-11-29 21:34:33 - Fix task completion button to properly archive completed tasks
+d6f0556 - 2025-11-29 21:16:11 - Fix archived reminders not showing in archive list after archiving
+4d457d2 - 2025-11-29 21:03:30 - Further optimize reminder card layout to prevent icon wrapping
+5375c99 - 2025-11-29 20:57:50 - Fix reminder card layout to prevent wrapping and make UI more professional
+2a542ad - 2025-11-29 19:12:06 - Fix archive/restore functionality and UI issues
+be76d1b - 2025-11-29 18:40:00 - TASK_COMPLETE: Add task completion tracking with archive integration
+cd208e6 - 2025-11-29 15:36:44 - TASK_COMPLETION_FEATURE - Add task completion tracking with archive integration
+7016cbc - 2025-11-29 11:59:04 - Implement archive/soft delete feature with backup verification
+527d914 - 2025-11-29 01:11:07 - Fix random firing issue by preventing duplicate alarm scheduling
+1878591 - 2025-11-29 00:53:35 - Implement UI synchronization between message input and setup page
+```
+
+### File Picker Implementation Commit
+```
+94c67a3 - 2025-12-03 21:58:19 - Implement file picker and attachment functionality
+ 5 files changed, 1006 insertions(+), 3 deletions(-)
+  app/src/main/java/com/reminder/app/MainActivity.kt | 32 +++
+  app/src/main/java/com/reminder/app/ui/components/FileAttachmentComponent.kt | 251 ++++++++++++++++++
+  app/src/main/java/com/reminder/app/ui/components/SimpleFilePicker.kt | 223 ++++++++++++++++
+  app/src/main/java/com/reminder/app/ui/screens/InputScreen.kt | 285 ++++++++++++++++++++-
+  app/src/main/java/com/reminder/app/utils/FileManager.kt | 218 ++++++++++++++++
+```
+
+### Working Versions for Rollback
+
+#### File Picker Working Version
+- **Tag**: `rollback1`
+- **Commit**: `94c67a3`
+- **Date**: 2025-12-03 21:58:19
+- **Features**: Complete file picker functionality with all components working
+- **Rollback Command**: `git checkout rollback1`
+
+#### Pre-File-Picker Stable Version
+- **Commit**: `313e610`
+- **Date**: 2025-12-01 21:01:42
+- **Features**: Home buttons checkpoint, stable UI without file picker
+- **Rollback Command**: `git reset --hard 313e610`
+
+#### Archive Feature Working Version
+- **Commit**: `7016cbc`
+- **Date**: 2025-11-29 11:59:04
+- **Features**: Archive/soft delete feature with backup verification
+- **Rollback Command**: `git reset --hard 7016cbc`
+
+### Quick Rollback Commands
+```bash
+# Rollback to File Picker (working version)
+git checkout rollback1
+
+# Rollback to Pre-File-Picker (stable)
+git reset --hard 313e610
+
+# Rollback to Archive Feature (working)
+git reset --hard 7016cbc
+
+# Return to latest main
+git checkout main
+
+# View all rollback points
+git tag -l
+git log --oneline -20
+```
+
+This rollback information provides complete traceability of all implementations with exact commit hashes and timestamps for easy rollback to any working version.
