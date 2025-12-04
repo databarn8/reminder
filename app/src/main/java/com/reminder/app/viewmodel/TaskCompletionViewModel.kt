@@ -88,6 +88,8 @@ class TaskCompletionViewModel(
             _isLoading.value = true
             try {
                 repository.unmarkReminderAsCompleted(id)
+                // Add a small delay to ensure database update completes before navigation
+                kotlinx.coroutines.delay(100)
                 loadCompletedReminders()
                 onReminderRestored()
                 _errorMessage.value = "Reminder restored successfully"
